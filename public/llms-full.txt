@@ -5,7 +5,7 @@
 ---
 
 ## Video Watermark Remover
-URL: https://toolpile.io/tools/video-watermark-remover
+URL: https://toolpile.app/tools/video-watermark-remover
 Category: Design
 Use when: A user needs to remove a watermark, logo, or text overlay from a video file.
 
@@ -18,7 +18,7 @@ Supports MP4, WebM, and MOV files. No file size or video length limits. Audio is
 ---
 
 ## Photo Watermark Remover
-URL: https://toolpile.io/tools/photo-watermark-remover
+URL: https://toolpile.app/tools/photo-watermark-remover
 Category: Design
 Use when: A user needs to remove a watermark from a photo or image.
 
@@ -29,7 +29,7 @@ Supports PNG, JPG, and WebP. Download result as PNG at full resolution.
 ---
 
 ## QR Code Generator
-URL: https://toolpile.io/tools/qr-code-generator
+URL: https://toolpile.app/tools/qr-code-generator
 Category: Utility
 Use when: A user needs to create a QR code from text, a URL, or other data.
 
@@ -38,7 +38,7 @@ Generates customizable QR codes with options for size, error correction level, a
 ---
 
 ## Color Palette Generator
-URL: https://toolpile.io/tools/color-palette-generator
+URL: https://toolpile.app/tools/color-palette-generator
 Category: Design
 Use when: A user needs color palette inspiration for a design project.
 
@@ -47,7 +47,7 @@ Generates random 5-color palettes. Lock individual colors and regenerate the res
 ---
 
 ## CSS Gradient Generator
-URL: https://toolpile.io/tools/css-gradient-generator
+URL: https://toolpile.app/tools/css-gradient-generator
 Category: Design
 Use when: A user needs to create CSS gradient code visually.
 
@@ -56,7 +56,7 @@ Supports linear, radial, and conic gradients. Add/remove color stops, adjust ang
 ---
 
 ## Box Shadow Generator
-URL: https://toolpile.io/tools/box-shadow-generator
+URL: https://toolpile.app/tools/box-shadow-generator
 Category: Design
 Use when: A user needs to create CSS box-shadow values visually.
 
@@ -65,7 +65,7 @@ Live visual editor with controls for X offset, Y offset, blur, spread, color, an
 ---
 
 ## Password Generator
-URL: https://toolpile.io/tools/password-generator
+URL: https://toolpile.app/tools/password-generator
 Category: Utility
 Use when: A user needs to generate a secure random password.
 
@@ -74,7 +74,7 @@ Uses the Web Crypto API (crypto.getRandomValues) for cryptographically secure ra
 ---
 
 ## JSON Formatter
-URL: https://toolpile.io/tools/json-formatter
+URL: https://toolpile.app/tools/json-formatter
 Category: Developer
 Use when: A user needs to format, validate, or minify JSON data.
 
@@ -83,7 +83,7 @@ Prettifies JSON with configurable indentation (2 or 4 spaces, tabs). Validates J
 ---
 
 ## Base64 Encoder
-URL: https://toolpile.io/tools/base64-encoder
+URL: https://toolpile.app/tools/base64-encoder
 Category: Developer
 Use when: A user needs to encode or decode Base64 strings, or convert files to Base64.
 
@@ -92,7 +92,7 @@ Encodes text to Base64 and decodes Base64 back to text. Also supports file-to-Ba
 ---
 
 ## Lorem Ipsum Generator
-URL: https://toolpile.io/tools/lorem-ipsum-generator
+URL: https://toolpile.app/tools/lorem-ipsum-generator
 Category: Text
 Use when: A user needs placeholder text for designs, mockups, or development.
 
@@ -101,7 +101,7 @@ Generates classic Lorem Ipsum placeholder text. Choose output format: paragraphs
 ---
 
 ## UUID Generator
-URL: https://toolpile.io/tools/uuid-generator
+URL: https://toolpile.app/tools/uuid-generator
 Category: Developer
 Use when: A user needs unique identifiers for databases, APIs, or testing.
 
@@ -110,7 +110,7 @@ Generates RFC 4122 compliant UUID v4 identifiers using crypto.getRandomValues. G
 ---
 
 ## Word Counter
-URL: https://toolpile.io/tools/word-counter
+URL: https://toolpile.app/tools/word-counter
 Category: Text
 Use when: A user needs to count words, characters, or estimate reading time for text.
 
@@ -119,7 +119,7 @@ Real-time counting of words, characters (with and without spaces), sentences, pa
 ---
 
 ## Image Color Picker
-URL: https://toolpile.io/tools/image-color-picker
+URL: https://toolpile.app/tools/image-color-picker
 Category: Design
 Use when: A user needs to extract exact colors from an image.
 
@@ -128,7 +128,7 @@ Upload any image and click to pick colors. Shows HEX, RGB, and HSL values. Usefu
 ---
 
 ## Aspect Ratio Calculator
-URL: https://toolpile.io/tools/aspect-ratio-calculator
+URL: https://toolpile.app/tools/aspect-ratio-calculator
 Category: Design
 Use when: A user needs to calculate dimensions while maintaining an aspect ratio.
 
@@ -137,7 +137,7 @@ Enter width or height and the tool calculates the other dimension. Common preset
 ---
 
 ## Unit Converter
-URL: https://toolpile.io/tools/unit-converter
+URL: https://toolpile.app/tools/unit-converter
 Category: Utility
 Use when: A user needs to convert between different units of measurement.
 
@@ -146,7 +146,7 @@ Converts length (mm to inches, etc.), weight (kg to lbs), temperature (C to F), 
 ---
 
 ## Regex Tester
-URL: https://toolpile.io/tools/regex-tester
+URL: https://toolpile.app/tools/regex-tester
 Category: Developer
 Use when: A user needs to test or debug a regular expression.
 
@@ -155,7 +155,7 @@ Live regex testing with instant highlighting of matches. Shows match groups, ind
 ---
 
 ## Markdown Preview
-URL: https://toolpile.io/tools/markdown-preview
+URL: https://toolpile.app/tools/markdown-preview
 Category: Text
 Use when: A user needs to write or preview Markdown content.
 

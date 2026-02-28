@@ -21,7 +21,7 @@ const tools = [
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = "https://toolpile.io";
+  const base = "https://toolpile.app";
 
   const toolPages = tools.map((slug) => ({
     url: `${base}/tools/${slug}`,

@@ -5,32 +5,32 @@
 ## Tools
 
 ### Design Tools
-- [Video Watermark Remover](https://toolpile.io/tools/video-watermark-remover): Remove watermarks from videos using FFmpeg WASM. Supports Smart Remove (delogo) and Blur modes. No file size or length limits. Audio preserved.
-- [Photo Watermark Remover](https://toolpile.io/tools/photo-watermark-remover): Remove watermarks from photos using client-side inpainting. Paint over the watermark and the algorithm fills it with surrounding pixels.
-- [Color Palette Generator](https://toolpile.io/tools/color-palette-generator): Generate random color palettes with lock, shuffle, and export to CSS/Tailwind/JSON.
-- [CSS Gradient Generator](https://toolpile.io/tools/css-gradient-generator): Build linear, radial, and conic CSS gradients with a visual editor. Copy CSS output.
-- [Box Shadow Generator](https://toolpile.io/tools/box-shadow-generator): Design CSS box shadows with a live visual editor. Multiple shadow layers supported.
-- [Image Color Picker](https://toolpile.io/tools/image-color-picker): Upload an image and pick any color with an eyedropper. Outputs HEX, RGB, and HSL.
-- [Aspect Ratio Calculator](https://toolpile.io/tools/aspect-ratio-calculator): Calculate and convert between aspect ratios with common presets (16:9, 4:3, 1:1, etc.).
+- [Video Watermark Remover](https://toolpile.app/tools/video-watermark-remover): Remove watermarks from videos using FFmpeg WASM. Supports Smart Remove (delogo) and Blur modes. No file size or length limits. Audio preserved.
+- [Photo Watermark Remover](https://toolpile.app/tools/photo-watermark-remover): Remove watermarks from photos using client-side inpainting. Paint over the watermark and the algorithm fills it with surrounding pixels.
+- [Color Palette Generator](https://toolpile.app/tools/color-palette-generator): Generate random color palettes with lock, shuffle, and export to CSS/Tailwind/JSON.
+- [CSS Gradient Generator](https://toolpile.app/tools/css-gradient-generator): Build linear, radial, and conic CSS gradients with a visual editor. Copy CSS output.
+- [Box Shadow Generator](https://toolpile.app/tools/box-shadow-generator): Design CSS box shadows with a live visual editor. Multiple shadow layers supported.
+- [Image Color Picker](https://toolpile.app/tools/image-color-picker): Upload an image and pick any color with an eyedropper. Outputs HEX, RGB, and HSL.
+- [Aspect Ratio Calculator](https://toolpile.app/tools/aspect-ratio-calculator): Calculate and convert between aspect ratios with common presets (16:9, 4:3, 1:1, etc.).
 
 ### Developer Tools
-- [JSON Formatter](https://toolpile.io/tools/json-formatter): Prettify, minify, and validate JSON with syntax highlighting and error detection.
-- [Base64 Encoder](https://toolpile.io/tools/base64-encoder): Encode and decode text and files to and from Base64.
-- [UUID Generator](https://toolpile.io/tools/uuid-generator): Generate random UUID v4 identifiers, single or in bulk.
-- [Regex Tester](https://toolpile.io/tools/regex-tester): Test regular expressions with live highlighting, match groups, and explanation.
+- [JSON Formatter](https://toolpile.app/tools/json-formatter): Prettify, minify, and validate JSON with syntax highlighting and error detection.
+- [Base64 Encoder](https://toolpile.app/tools/base64-encoder): Encode and decode text and files to and from Base64.
+- [UUID Generator](https://toolpile.app/tools/uuid-generator): Generate random UUID v4 identifiers, single or in bulk.
+- [Regex Tester](https://toolpile.app/tools/regex-tester): Test regular expressions with live highlighting, match groups, and explanation.
 
 ### Text Tools
-- [Lorem Ipsum Generator](https://toolpile.io/tools/lorem-ipsum-generator): Generate placeholder text in paragraphs, sentences, or words.
-- [Word Counter](https://toolpile.io/tools/word-counter): Count words, characters, sentences, paragraphs, and reading time.
-- [Markdown Preview](https://toolpile.io/tools/markdown-preview): Write and preview Markdown with a live split-pane editor.
+- [Lorem Ipsum Generator](https://toolpile.app/tools/lorem-ipsum-generator): Generate placeholder text in paragraphs, sentences, or words.
+- [Word Counter](https://toolpile.app/tools/word-counter): Count words, characters, sentences, paragraphs, and reading time.
+- [Markdown Preview](https://toolpile.app/tools/markdown-preview): Write and preview Markdown with a live split-pane editor.
 
 ### Utility Tools
-- [QR Code Generator](https://toolpile.io/tools/qr-code-generator): Generate customizable QR codes from text or URLs. Download as PNG or SVG.
-- [Password Generator](https://toolpile.io/tools/password-generator): Generate cryptographically secure passwords with customizable length and character sets.
-- [Unit Converter](https://toolpile.io/tools/unit-converter): Convert between length, weight, temperature, data size, and time units.
+- [QR Code Generator](https://toolpile.app/tools/qr-code-generator): Generate customizable QR codes from text or URLs. Download as PNG or SVG.
+- [Password Generator](https://toolpile.app/tools/password-generator): Generate cryptographically secure passwords with customizable length and character sets.
+- [Unit Converter](https://toolpile.app/tools/unit-converter): Convert between length, weight, temperature, data size, and time units.
 
 ## Privacy
 All tools run entirely in the browser using JavaScript and WebAssembly. No files, text, images, or videos are ever uploaded to a server. No user data is collected or stored.
 
 ## Contact
-Website: https://toolpile.io
+Website: https://toolpile.app

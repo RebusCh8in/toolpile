@@ -34,7 +34,7 @@ export default function ToolLayout({
   relatedTools,
   keywords,
 }: ToolLayoutProps) {
-  const url = `https://toolpile.io/tools/${slug}`;
+  const url = `https://toolpile.app/tools/${slug}`;
 
   // SoftwareApplication schema
   const appSchema = {
@@ -67,8 +67,8 @@ export default function ToolLayout({
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "https://toolpile.io" },
-      { "@type": "ListItem", position: 2, name: category, item: `https://toolpile.io/#${category.toLowerCase()}` },
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://toolpile.app" },
+      { "@type": "ListItem", position: 2, name: category, item: `https://toolpile.app/#${category.toLowerCase()}` },
       { "@type": "ListItem", position: 3, name: title, item: url },
     ],
   };

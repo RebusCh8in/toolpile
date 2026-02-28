@@ -8,6 +8,6 @@ export default function robots(): MetadataRoute.Robots {
         allow: "/",
       },
     ],
-    sitemap: "https://toolpile.io/sitemap.xml",
+    sitemap: "https://toolpile.app/sitemap.xml",
   };
 }

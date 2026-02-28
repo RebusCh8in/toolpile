@@ -25,7 +25,7 @@ const code = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://toolpile.io"),
+  metadataBase: new URL("https://toolpile.app"),
   title: {
     default: "ToolPile - Free Developer & Design Tools | No Signup Required",
     template: "%s | ToolPile",
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     title: "ToolPile - Free Developer & Design Tools",
     description: "17 free browser-based tools. No signup, no data stored. Everything runs locally.",
     type: "website",
-    url: "https://toolpile.io",
+    url: "https://toolpile.app",
     siteName: "ToolPile",
   },
   twitter: {
@@ -62,7 +62,7 @@ export const metadata: Metadata = {
     follow: true,
   },
   alternates: {
-    canonical: "https://toolpile.io",
+    canonical: "https://toolpile.app",
   },
 };
 
@@ -93,11 +93,11 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebSite",
               name: "ToolPile",
-              url: "https://toolpile.io",
+              url: "https://toolpile.app",
               description: "Free developer and design tools. No signup required.",
               potentialAction: {
                 "@type": "SearchAction",
-                target: "https://toolpile.io/?q={search_term_string}",
+                target: "https://toolpile.app/?q={search_term_string}",
                 "query-input": "required name=search_term_string",
               },
             }),
