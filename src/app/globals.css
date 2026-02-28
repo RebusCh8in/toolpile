@@ -1,26 +1,157 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/*
+ * THEME: Warm editorial workshop.
+ * Inverted zinc scale: 950=cream(bg), 100=charcoal(text)
+ * Blue → terracotta. This re-skins all 17 tools automatically.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Backgrounds light → Text dark */
+  --color-zinc-950: #FAF7F2;
+  --color-zinc-900: #FFFFFF;
+  --color-zinc-800: #F0EBE3;
+  --color-zinc-700: #E0DAD0;
+  --color-zinc-600: #A09A90;
+  --color-zinc-500: #78736B;
+  --color-zinc-400: #5C5750;
+  --color-zinc-300: #44403A;
+  --color-zinc-200: #2E2A25;
+  --color-zinc-100: #1A1815;
+  --color-zinc-50:  #100E0C;
+
+  /* Terracotta accent replaces blue */
+  --color-blue-50:  #FEF5F2;
+  --color-blue-100: #FDE8E0;
+  --color-blue-200: #F4C4B0;
+  --color-blue-300: #E8A090;
+  --color-blue-400: #D87860;
+  --color-blue-500: #C45D3E;
+  --color-blue-600: #A84D33;
+  --color-blue-700: #8C3F29;
+  --color-blue-800: #70321F;
+  --color-blue-900: #542616;
+
+  /* Warmer greens */
+  --color-green-400: #5E9E40;
+  --color-green-500: #4D8B31;
+  --color-green-600: #3D7826;
+
+  /* Warmer reds */
+  --color-red-400: #DC6B5A;
+  --color-red-500: #C9503D;
+
+  /* Warmer yellows */
+  --color-yellow-500: #C89520;
+
+  /* Warmer purples */
+  --color-purple-400: #9A7BC4;
+  --color-purple-500: #7E5CA8;
+
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-code);
+  --font-display: var(--font-heading);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ─── Base ─── */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #FAF7F2;
+  color: #1A1815;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Subtle paper grain overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #F0EBE3; }
+::-webkit-scrollbar-thumb { background: #D0C8BE; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #B8AFA5; }
+
+/* ─── Ad Slot ─── */
+.ad-slot {
+  border: 1.5px dashed #D0C8BE;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #A09A90;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 8px;
+  background: #F5F1EB;
+}
+
+/* ─── JSON Syntax ─── */
+.json-key { color: #A84D33; }
+.json-string { color: #3D7826; }
+.json-number { color: #C89520; }
+.json-boolean { color: #7E5CA8; }
+.json-null { color: #C9503D; }
+
+/* ─── Markdown Preview ─── */
+.markdown-preview h1 { font-size: 2rem; font-weight: 700; margin: 1rem 0 0.5rem; border-bottom: 1.5px solid #E0DAD0; padding-bottom: 0.5rem; color: #1A1815; }
+.markdown-preview h2 { font-size: 1.5rem; font-weight: 600; margin: 1rem 0 0.5rem; border-bottom: 1px solid #E0DAD0; padding-bottom: 0.25rem; color: #1A1815; }
+.markdown-preview h3 { font-size: 1.25rem; font-weight: 600; margin: 0.75rem 0 0.5rem; color: #2E2A25; }
+.markdown-preview h4 { font-size: 1.125rem; font-weight: 600; margin: 0.5rem 0; color: #2E2A25; }
+.markdown-preview p { margin: 0.5rem 0; line-height: 1.75; color: #44403A; }
+.markdown-preview ul { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+.markdown-preview ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
+.markdown-preview li { margin: 0.25rem 0; color: #44403A; }
+.markdown-preview blockquote { border-left: 3px solid #C45D3E; padding-left: 1rem; margin: 0.5rem 0; color: #78736B; background: #F5F1EB; border-radius: 0 6px 6px 0; padding: 0.75rem 1rem; }
+.markdown-preview code { background: #F0EBE3; padding: 0.125rem 0.375rem; border-radius: 4px; font-size: 0.875rem; color: #A84D33; }
+.markdown-preview pre { background: #F0EBE3; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 0.5rem 0; border: 1px solid #E0DAD0; }
+.markdown-preview pre code { background: none; padding: 0; color: #44403A; }
+.markdown-preview a { color: #C45D3E; text-decoration: underline; text-underline-offset: 2px; }
+.markdown-preview table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+.markdown-preview th, .markdown-preview td { border: 1px solid #E0DAD0; padding: 0.5rem; text-align: left; }
+.markdown-preview th { background: #F5F1EB; font-weight: 600; color: #2E2A25; }
+.markdown-preview hr { border: none; border-top: 1.5px solid #E0DAD0; margin: 1.5rem 0; }
+.markdown-preview img { max-width: 100%; border-radius: 8px; border: 1px solid #E0DAD0; }
+
+/* ─── Regex ─── */
+.regex-match { background: rgba(196, 93, 62, 0.15); border-radius: 2px; padding: 1px 0; }
+.regex-match-alt { background: rgba(126, 92, 168, 0.15); border-radius: 2px; padding: 1px 0; }
+
+/* ─── Guide / Prose content below tools ─── */
+.prose-custom h2 { font-size: 1.5rem; font-weight: 600; margin: 2rem 0 0.75rem; color: #1A1815; font-family: var(--font-display); }
+.prose-custom h3 { font-size: 1.2rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #2E2A25; }
+.prose-custom p { margin: 0.75rem 0; line-height: 1.8; color: #44403A; font-size: 0.95rem; }
+.prose-custom ul { list-style: disc; padding-left: 1.5rem; margin: 0.75rem 0; }
+.prose-custom ol { list-style: decimal; padding-left: 1.5rem; margin: 0.75rem 0; }
+.prose-custom li { margin: 0.35rem 0; color: #44403A; font-size: 0.95rem; line-height: 1.7; }
+.prose-custom strong { color: #1A1815; font-weight: 600; }
+.prose-custom a { color: #C45D3E; text-decoration: underline; text-underline-offset: 2px; }
+.prose-custom code { background: #F0EBE3; padding: 0.125rem 0.375rem; border-radius: 4px; font-size: 0.85rem; color: #A84D33; }
+.prose-custom hr { border: none; border-top: 1.5px solid #E0DAD0; margin: 2rem 0; }
+
+/* ─── Selection ─── */
+::selection {
+  background: rgba(196, 93, 62, 0.2);
+  color: #1A1815;
+}
+
+/* ─── Focus ring ─── */
+*:focus-visible {
+  outline: 2px solid #C45D3E;
+  outline-offset: 2px;
+}
+
+/* ─── Range input accent override ─── */
+input[type="range"] {
+  accent-color: #C45D3E;
+}
+
+/* ─── Smooth transitions on interactive elements ─── */
+a, button {
+  transition: all 0.15s ease;
 }
