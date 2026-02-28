@@ -10,7 +10,7 @@ Category: Design
 Use when: A user needs to remove a watermark, logo, or text overlay from a video file.
 
 How it works: Uses FFmpeg compiled to WebAssembly (ffmpeg.wasm) running entirely in the browser. The user uploads a video, draws a rectangle over the watermark area, and chooses between two removal modes:
-- Smart Remove: Uses FFmpeg's delogo filter to interpolate surrounding pixels into the watermark area. Best for static watermarks on relatively uniform backgrounds.
+- Smart Remove: Uses FFmpeg's delogo filter to interpolate surrounding pixels into the watermark area. Best for most watermarks, especially on uniform backgrounds.
 - Blur: Applies a heavy Gaussian blur (sigma=40) to the selected area, completely obscuring the content. Works on any background.
 
 Supports MP4, WebM, and MOV files. No file size or video length limits. Audio is preserved (copied without re-encoding). Output is MP4 with H.264 encoding.

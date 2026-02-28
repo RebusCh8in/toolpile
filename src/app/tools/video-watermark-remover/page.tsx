@@ -6,11 +6,11 @@ import ToolLayout, { FAQ, RelatedTool } from '@/components/ToolLayout'
 const faqs: FAQ[] = [
   {
     question: "How do I remove a watermark from a video for free?",
-    answer: "Upload your video to this tool, draw a rectangle over the watermark, choose a removal mode (Content-Aware Fill for best quality, Smart Remove for speed, or Blur as a fallback), and click Remove Watermark. Everything runs in your browser — no upload, no signup."
+    answer: "Upload your video to this tool, draw a rectangle over the watermark, choose Smart Remove or Blur mode, and click Remove Watermark. Everything runs in your browser — no upload, no signup."
   },
   {
-    question: "What is Content-Aware Fill and how is it different from Smart Remove?",
-    answer: "Content-Aware Fill extracts every frame from your video and applies an edge-aware inpainting algorithm that detects local structure and fills the watermark region by extending surrounding textures and edges inward. Smart Remove uses FFmpeg's delogo filter which is faster but uses simpler interpolation. Content-Aware Fill produces significantly better results on complex backgrounds."
+    question: "What is the difference between Smart Remove and Blur?",
+    answer: "Smart Remove uses FFmpeg's delogo filter to intelligently interpolate surrounding pixels into the watermark area, producing natural-looking results. Blur applies a heavy Gaussian blur that completely obscures the watermark — useful when Smart Remove leaves artifacts on complex backgrounds."
   },
   {
     question: "Does removing a video watermark reduce quality?",
@@ -18,7 +18,7 @@ const faqs: FAQ[] = [
   },
   {
     question: "Is there a file size or video length limit?",
-    answer: "There is no hard limit since processing happens locally. Content-Aware Fill is slower (it processes every frame individually), so it works best on clips under 2 minutes. Smart Remove and Blur handle longer videos easily."
+    answer: "There is no hard limit since all processing happens locally in your browser. Smart Remove and Blur both handle long videos efficiently."
   },
   {
     question: "Can I remove watermarks from TikTok or YouTube videos?",
@@ -26,7 +26,7 @@ const faqs: FAQ[] = [
   },
   {
     question: "Is my video uploaded to a server?",
-    answer: "No. All processing happens entirely in your browser using WebAssembly-powered FFmpeg and JavaScript canvas inpainting. Your video never leaves your device."
+    answer: "No. All processing happens entirely in your browser using WebAssembly-powered FFmpeg. Your video never leaves your device."
   }
 ]
 
@@ -43,7 +43,7 @@ interface Rect {
   h: number
 }
 
-type Mode = 'fill' | 'delogo' | 'blur'
+type Mode = 'delogo' | 'blur'
 
 export default function VideoWatermarkRemover() {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -61,7 +61,7 @@ export default function VideoWatermarkRemover() {
   const [progress, setProgress] = useState(0)
   const [statusMsg, setStatusMsg] = useState('')
   const [processedUrl, setProcessedUrl] = useState('')
-  const [mode, setMode] = useState<Mode>('fill')
+  const [mode, setMode] = useState<Mode>('delogo')
   const [error, setError] = useState('')
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -247,158 +247,6 @@ export default function VideoWatermarkRemover() {
     return blob
   }
 
-  // ── Content-Aware Fill: frame-by-frame inpainting ──
-  const processContentAwareFill = async () => {
-    if (!videoFile || !rect || !displaySize.width) return
-
-    const { FFmpeg } = await import('@ffmpeg/ffmpeg')
-    const { fetchFile, toBlobURL } = await import('@ffmpeg/util')
-    const { inpaintContentAware } = await import('@/lib/inpaint')
-
-    const ffmpeg = new FFmpeg()
-
-    // Detect FPS from probe
-    let detectedFps = 30
-    ffmpeg.on('log', ({ message }) => {
-      const m = message.match(/(\d+(?:\.\d+)?)\s+fps/)
-      if (m) detectedFps = Math.round(parseFloat(m[1]))
-    })
-
-    setStatusMsg('Downloading video engine (~30 MB, cached after first use)...')
-    await ffmpeg.load({
-      coreURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js', 'text/javascript'),
-      wasmURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm', 'application/wasm'),
-    })
-
-    setStatusMsg('Reading video file...')
-    const ext = videoFile.name.match(/\.[^.]+$/)?.[0] || '.mp4'
-    const inputName = `input${ext}`
-    await ffmpeg.writeFile(inputName, await fetchFile(videoFile))
-
-    // Probe to get FPS
-    setStatusMsg('Analyzing video...')
-    await ffmpeg.exec(['-i', inputName, '-f', 'null', '-t', '0.01', '-']).catch(() => {})
-
-    // Limit FPS for content-aware to keep processing time reasonable
-    const processFps = Math.min(detectedFps, 30)
-
-    // Extract frames as JPEG
-    setStatusMsg('Extracting frames...')
-    await ffmpeg.exec([
-      '-i', inputName,
-      '-vf', `fps=${processFps}`,
-      '-qscale:v', '3',
-      '-y',
-      'frame_%05d.jpg'
-    ])
-
-    // Extract audio separately
-    await ffmpeg.exec(['-i', inputName, '-vn', '-c:a', 'copy', '-y', 'audio.aac']).catch(() => {})
-    const hasAudio = await ffmpeg.readFile('audio.aac').then(() => true).catch(() => false)
-
-    // List frames
-    const files = await ffmpeg.listDir('/')
-    const frameFiles = files
-      .filter(f => f.name.startsWith('frame_') && f.name.endsWith('.jpg'))
-      .map(f => f.name)
-      .sort()
-
-    if (frameFiles.length === 0) throw new Error('Failed to extract frames from video.')
-
-    // Scale rectangle to native coords
-    const sx = nativeSize.width / displaySize.width
-    const sy = nativeSize.height / displaySize.height
-    const pad = 6
-    const vx = Math.max(0, Math.round(rect.x * sx) - pad)
-    const vy = Math.max(0, Math.round(rect.y * sy) - pad)
-    const vw = Math.min(Math.round(rect.w * sx) + pad * 2, nativeSize.width - vx)
-    const vh = Math.min(Math.round(rect.h * sy) + pad * 2, nativeSize.height - vy)
-
-    // Create offscreen canvas for frame processing
-    const offCanvas = document.createElement('canvas')
-    const offCtx = offCanvas.getContext('2d', { willReadFrequently: true })!
-
-    setStatusMsg(`Inpainting ${frameFiles.length} frames...`)
-
-    for (let i = 0; i < frameFiles.length; i++) {
-      setStatusMsg(`Content-Aware Fill: frame ${i + 1}/${frameFiles.length}`)
-      setProgress(Math.round((i / frameFiles.length) * 90))
-
-      // Read frame from FFmpeg FS
-      const frameData = await ffmpeg.readFile(frameFiles[i])
-      const raw = frameData as Uint8Array
-      const buf = new ArrayBuffer(raw.byteLength)
-      new Uint8Array(buf).set(raw)
-      const blob = new Blob([buf], { type: 'image/jpeg' })
-      const bitmap = await createImageBitmap(blob)
-
-      offCanvas.width = bitmap.width
-      offCanvas.height = bitmap.height
-      offCtx.drawImage(bitmap, 0, 0)
-
-      // Create mask for the watermark rectangle
-      const imgData = offCtx.getImageData(0, 0, bitmap.width, bitmap.height)
-      const mask = new Uint8Array(bitmap.width * bitmap.height)
-      for (let my = vy; my < vy + vh && my < bitmap.height; my++) {
-        for (let mx = vx; mx < vx + vw && mx < bitmap.width; mx++) {
-          mask[my * bitmap.width + mx] = 1
-        }
-      }
-
-      // Run edge-aware inpainting (fast mode for video)
-      const result = inpaintContentAware(imgData, mask, 'fast')
-      offCtx.putImageData(result, 0, 0)
-
-      // Write processed frame back
-      const processedBlob = await new Promise<Blob>((resolve) => {
-        offCanvas.toBlob(b => resolve(b!), 'image/jpeg', 0.95)
-      })
-      const processedData = new Uint8Array(await processedBlob.arrayBuffer())
-      await ffmpeg.writeFile(frameFiles[i], processedData)
-
-      bitmap.close()
-    }
-
-    // Re-encode frames + audio
-    setStatusMsg('Encoding final video...')
-    setProgress(92)
-
-    const encodeArgs = [
-      '-framerate', String(processFps),
-      '-i', 'frame_%05d.jpg',
-    ]
-    if (hasAudio) {
-      encodeArgs.push('-i', 'audio.aac', '-map', '0:v', '-map', '1:a', '-c:a', 'copy')
-    }
-    encodeArgs.push(
-      '-c:v', 'libx264',
-      '-preset', 'ultrafast',
-      '-crf', '20',
-      '-pix_fmt', 'yuv420p',
-      '-y', 'output.mp4'
-    )
-
-    await ffmpeg.exec(encodeArgs)
-
-    setStatusMsg('Preparing download...')
-    const outData = await ffmpeg.readFile('output.mp4')
-    const outRaw = outData as Uint8Array
-    const outCopy = new ArrayBuffer(outRaw.byteLength)
-    new Uint8Array(outCopy).set(outRaw)
-    const outBlob = new Blob([outCopy], { type: 'video/mp4' })
-
-    if (outBlob.size < 1000) throw new Error('Output video is empty.')
-
-    // Cleanup
-    for (const f of frameFiles) await ffmpeg.deleteFile(f).catch(() => {})
-    await ffmpeg.deleteFile(inputName).catch(() => {})
-    await ffmpeg.deleteFile('output.mp4').catch(() => {})
-    if (hasAudio) await ffmpeg.deleteFile('audio.aac').catch(() => {})
-    ffmpeg.terminate()
-
-    return outBlob
-  }
-
   // ── Main process dispatcher ──
   const processVideo = async () => {
     if (!videoFile || !rect || !displaySize.width) return
@@ -409,13 +257,7 @@ export default function VideoWatermarkRemover() {
 
     try {
       setStatusMsg('Loading video engine...')
-      let blob: Blob | undefined
-
-      if (mode === 'fill') {
-        blob = await processContentAwareFill()
-      } else {
-        blob = await processFFmpeg(mode)
-      }
+      const blob = await processFFmpeg(mode)
 
       if (blob) {
         setProcessedUrl(URL.createObjectURL(blob))
@@ -424,7 +266,8 @@ export default function VideoWatermarkRemover() {
       }
     } catch (err) {
       console.error('Processing error:', err)
-      setError(err instanceof Error ? err.message : 'Processing failed. Try a different mode.')
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(`Processing failed: ${msg}`)
       setStep('select')
     }
   }
@@ -458,15 +301,14 @@ export default function VideoWatermarkRemover() {
   }
 
   const modeDescriptions: Record<Mode, { label: string; desc: string }> = {
-    fill: { label: 'Content-Aware Fill', desc: 'Best quality — inpaints each frame with edge-aware algorithm. Slower.' },
-    delogo: { label: 'Smart Remove', desc: 'Fast — FFmpeg delogo interpolation. Good for simple backgrounds.' },
-    blur: { label: 'Blur', desc: 'Fallback — heavy gaussian blur. Works on anything.' },
+    delogo: { label: 'Smart Remove', desc: 'Interpolates surrounding pixels into the watermark area. Best for most watermarks.' },
+    blur: { label: 'Blur', desc: 'Heavy gaussian blur over the selected area. Works on any background.' },
   }
 
   return (
     <ToolLayout
       title="Video Watermark Remover"
-      description="Remove watermarks from any video for free. Content-Aware Fill, Smart Remove, and Blur modes. No upload, no signup, runs entirely in your browser."
+      description="Remove watermarks from any video for free. Smart Remove and Blur modes. No upload, no signup, runs entirely in your browser."
       category="Design"
       slug="video-watermark-remover"
       faqs={faqs}
@@ -474,7 +316,6 @@ export default function VideoWatermarkRemover() {
       keywords={[
         "video watermark remover",
         "remove watermark from video free",
-        "content aware fill video",
         "video watermark remover online",
         "remove logo from video",
         "ffmpeg watermark removal",
@@ -486,17 +327,13 @@ export default function VideoWatermarkRemover() {
         <>
           <h2>What Is the Video Watermark Remover?</h2>
           <p>
-            The Video Watermark Remover is a free browser-based tool that removes watermarks, logos, and text overlays from any video file. It offers three removal modes including Content-Aware Fill, which uses an edge-aware inpainting algorithm to intelligently reconstruct the background behind a watermark.
-          </p>
-          <p>
-            All processing happens entirely on your device using FFmpeg WebAssembly and JavaScript canvas processing. Nothing is uploaded to a server.
+            The Video Watermark Remover is a free browser-based tool that removes watermarks, logos, and text overlays from any video file. It uses FFmpeg compiled to WebAssembly, running entirely in your browser with no server uploads.
           </p>
 
-          <h3>Three Removal Modes</h3>
+          <h3>Two Removal Modes</h3>
           <ul>
-            <li><strong>Content-Aware Fill</strong> — Extracts every frame, detects edge structure around the watermark, and fills inward by extending surrounding textures along their natural direction. Produces the most natural results, especially on complex or textured backgrounds. Slower, best for clips under 2 minutes.</li>
-            <li><strong>Smart Remove</strong> — Uses FFmpeg&apos;s delogo filter to quickly interpolate surrounding pixels. Fast and effective for watermarks on simple or solid-color backgrounds.</li>
-            <li><strong>Blur</strong> — Applies a heavy Gaussian blur that completely obscures the watermark. Use when other modes leave artifacts, or when the watermark is on a very complex moving background.</li>
+            <li><strong>Smart Remove</strong> — Uses FFmpeg&apos;s delogo filter to interpolate surrounding pixels into the watermark area. Fast and effective for most watermarks, especially on simple or uniform backgrounds.</li>
+            <li><strong>Blur</strong> — Applies a heavy Gaussian blur that completely obscures the watermark. Use when Smart Remove leaves artifacts, or when the watermark is on a very complex moving background.</li>
           </ul>
 
           <h3>How to Remove a Watermark</h3>
@@ -504,7 +341,7 @@ export default function VideoWatermarkRemover() {
             <li>Upload your video file (MP4, WebM, MOV).</li>
             <li>Scrub the timeline to find a frame where the watermark is visible.</li>
             <li>Click and drag a rectangle tightly around the watermark.</li>
-            <li>Choose your removal mode.</li>
+            <li>Choose Smart Remove or Blur.</li>
             <li>Click Remove Watermark and wait for processing.</li>
             <li>Preview the result and download.</li>
           </ol>
@@ -512,9 +349,8 @@ export default function VideoWatermarkRemover() {
           <h3>Tips for Best Results</h3>
           <ul>
             <li>Draw the rectangle as tightly as possible — a smaller selection produces cleaner results.</li>
-            <li>For semi-transparent stock watermarks (Shutterstock, Getty), Content-Aware Fill works great.</li>
-            <li>For opaque text over a uniform background, Smart Remove is fastest and sufficient.</li>
-            <li>Content-Aware Fill processes each frame individually, so processing time scales with video length. For quick tests, trim your video to the first 10-15 seconds.</li>
+            <li>Smart Remove works best for semi-transparent stock watermarks and text on uniform backgrounds.</li>
+            <li>Use Blur as a fallback when Smart Remove leaves visible artifacts.</li>
           </ul>
         </>
       }
@@ -538,7 +374,7 @@ export default function VideoWatermarkRemover() {
             <p className="text-lg text-zinc-300 mb-2">Drop a video here or click to upload</p>
             <p className="text-sm text-zinc-500">MP4, WebM, MOV — any length, any size</p>
             <p className="text-xs text-zinc-600 mt-3">
-              Powered by FFmpeg + Content-Aware Fill. Everything runs in your browser.
+              Powered by FFmpeg WebAssembly. Everything runs in your browser.
             </p>
             <input
               id="video-upload"
@@ -557,13 +393,13 @@ export default function VideoWatermarkRemover() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-zinc-400 mr-1">Mode:</span>
-                {(['fill', 'delogo', 'blur'] as Mode[]).map((m) => (
+                {(['delogo', 'blur'] as Mode[]).map((m) => (
                   <button
                     key={m}
                     onClick={() => setMode(m)}
                     className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                       mode === m
-                        ? m === 'fill' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
+                        ? 'bg-blue-600 text-white'
                         : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                     }`}
                   >
@@ -645,7 +481,7 @@ export default function VideoWatermarkRemover() {
               <ol className="text-sm text-zinc-400 space-y-1 list-decimal list-inside">
                 <li>Scrub to a frame where the watermark is visible</li>
                 <li>Click and drag a rectangle tightly around the watermark</li>
-                <li>Choose <strong className="text-green-400">Content-Aware Fill</strong> for best quality, or <strong className="text-zinc-300">Smart Remove</strong> for speed</li>
+                <li>Choose <strong className="text-zinc-300">Smart Remove</strong> for best results, or <strong className="text-zinc-300">Blur</strong> as a fallback</li>
                 <li>Click &ldquo;Remove Watermark&rdquo; — audio is preserved</li>
               </ol>
             </div>
@@ -655,27 +491,23 @@ export default function VideoWatermarkRemover() {
         {/* ── Processing ── */}
         {step === 'processing' && (
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
-            <div className="text-5xl mb-6">{mode === 'fill' ? '🧠' : '⚙️'}</div>
-            <h2 className="text-xl font-semibold text-zinc-100 mb-2">
-              {mode === 'fill' ? 'Content-Aware Fill' : 'Processing Video'}
-            </h2>
+            <div className="text-5xl mb-6">⚙️</div>
+            <h2 className="text-xl font-semibold text-zinc-100 mb-2">Processing Video</h2>
             <p className="text-sm text-zinc-400 mb-6">{statusMsg}</p>
             <div className="max-w-md mx-auto mb-6">
               <div className="flex justify-between text-sm text-zinc-400 mb-1">
-                <span>{mode === 'fill' ? 'Inpainting frames' : progress > 0 ? 'Encoding' : 'Loading'}</span>
+                <span>{progress > 0 ? 'Encoding' : 'Loading'}</span>
                 <span>{progress}%</span>
               </div>
               <div className="w-full bg-zinc-800 rounded-full h-3">
                 <div
-                  className={`h-3 rounded-full transition-all duration-300 ${mode === 'fill' ? 'bg-green-500' : 'bg-blue-500'}`}
+                  className="h-3 rounded-full transition-all duration-300 bg-blue-500"
                   style={{ width: `${progress}%` }}
                 />
               </div>
             </div>
             <p className="text-xs text-zinc-500">
-              {mode === 'fill'
-                ? 'Each frame is being individually inpainted with edge-aware content fill. This takes longer but produces superior results.'
-                : 'FFmpeg is processing your video locally. Keep this tab open.'}
+              FFmpeg is processing your video locally. Keep this tab open.
             </p>
           </div>
         )}
