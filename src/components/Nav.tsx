@@ -15,7 +15,7 @@ export default function Nav() {
         </Link>
         <Link
           href="/"
-          className="text-sm font-medium text-zinc-500 hover:text-zinc-200 transition-colors"
+          className="text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
         >
           All Tools &rarr;
         </Link>

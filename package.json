@@ -11,9 +11,16 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.10",
     "@ffmpeg/util": "^0.12.1",
+    "@huggingface/transformers": "^3.8.1",
+    "@imgly/background-removal": "^1.7.0",
     "@types/qrcode": "^1.5.6",
     "@types/uuid": "^10.0.0",
+    "critters": "^0.0.23",
+    "gray-matter": "^4.0.3",
+    "jspdf": "^4.2.0",
     "next": "16.1.6",
+    "onnxruntime-web": "^1.16.3",
+    "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -21,6 +28,12 @@
     "remark-gfm": "^4.0.1",
     "uuid": "^13.0.0"
   },
+  "browserslist": [
+    "chrome >= 90",
+    "firefox >= 90",
+    "safari >= 15",
+    "edge >= 90"
+  ],
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

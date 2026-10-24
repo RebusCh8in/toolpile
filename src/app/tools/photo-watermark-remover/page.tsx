@@ -2,7 +2,110 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import ToolLayout, { FAQ, RelatedTool } from '@/components/ToolLayout'
-import { inpaint } from '@/lib/inpaint'
+
+// ── MI-GAN AI Inpainting via ONNX Runtime (loaded from CDN) ──
+const MODEL_URL = 'https://huggingface.co/andraniksargsyan/migan/resolve/main/migan_pipeline_v2.onnx'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let ortLib: any = null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cachedSession: any = null
+
+async function loadOrt() {
+  if (ortLib) return ortLib
+  await new Promise<void>((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).ort) { resolve(); return }
+    const script = document.createElement('script')
+    script.src = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.wasm.min.js'
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Failed to load AI engine'))
+    document.head.appendChild(script)
+  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ortLib = (window as any).ort
+  ortLib.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/'
+  ortLib.env.wasm.numThreads = 1
+  return ortLib
+}
+
+async function getSession(onProgress?: (p: number) => void) {
+  if (cachedSession) return cachedSession
+  const ort = await loadOrt()
+
+  const resp = await fetch(MODEL_URL)
+  const contentLength = Number(resp.headers.get('content-length') || 0)
+  const reader = resp.body!.getReader()
+  const chunks: Uint8Array[] = []
+  let received = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    chunks.push(value)
+    received += value.length
+    if (contentLength && onProgress) onProgress(received / contentLength)
+  }
+  const modelBuffer = new Uint8Array(received)
+  let offset = 0
+  for (const chunk of chunks) { modelBuffer.set(chunk, offset); offset += chunk.length }
+
+  cachedSession = await ort.InferenceSession.create(modelBuffer.buffer, {
+    executionProviders: ['wasm'],
+  })
+  return cachedSession
+}
+
+async function miganInpaint(
+  imageData: ImageData,
+  mask: Uint8Array,
+  onProgress?: (p: number) => void
+): Promise<ImageData> {
+  const session = await getSession(onProgress)
+  const { width: W, height: H, data } = imageData
+
+  // Build image tensor (CHW, uint8)
+  const imgArr = new Uint8Array(3 * H * W)
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const si = (y * W + x) * 4
+      const di = y * W + x
+      imgArr[0 * H * W + di] = data[si]
+      imgArr[1 * H * W + di] = data[si + 1]
+      imgArr[2 * H * W + di] = data[si + 2]
+    }
+  }
+
+  // Build mask tensor: 0 = inpaint, 255 = keep
+  const maskArr = new Uint8Array(H * W)
+  for (let i = 0; i < H * W; i++) {
+    maskArr[i] = mask[i] === 1 ? 0 : 255
+  }
+
+  const imageTensor = new ortLib.Tensor('uint8', imgArr, [1, 3, H, W])
+  const maskTensor = new ortLib.Tensor('uint8', maskArr, [1, 1, H, W])
+
+  const feed: Record<string, unknown> = {
+    [session.inputNames[0]]: imageTensor,
+    [session.inputNames[1]]: maskTensor,
+  }
+
+  const results = await session.run(feed)
+  const outData = results[session.outputNames[0]].data as Uint8Array
+
+  // CHW → RGBA
+  const result = new Uint8ClampedArray(W * H * 4)
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const si = y * W + x
+      const di = si * 4
+      result[di] = Math.min(255, Math.max(0, outData[0 * H * W + si]))
+      result[di + 1] = Math.min(255, Math.max(0, outData[1 * H * W + si]))
+      result[di + 2] = Math.min(255, Math.max(0, outData[2 * H * W + si]))
+      result[di + 3] = 255
+    }
+  }
+  return new ImageData(result, W, H)
+}
 
 const faqs: FAQ[] = [
   {
@@ -150,31 +253,34 @@ export default function PhotoWatermarkRemover() {
     // Get image data
     const imageData = ctx.getImageData(0, 0, w, h)
 
-    // Build mask from red overlay
+    // Build mask from red overlay: 1 = inpaint, 0 = keep
     const maskData = maskCtx.getImageData(0, 0, w, h)
     const mask = new Uint8Array(w * h)
     for (let i = 0; i < w * h; i++) {
       mask[i] = maskData.data[i * 4 + 3] > 30 ? 1 : 0
     }
 
-    setProgress(20)
-    await new Promise(r => setTimeout(r, 50))
+    try {
+      // Run MI-GAN AI inpainting
+      const result = await miganInpaint(imageData, mask, (p) => {
+        setProgress(Math.round(p * 70))
+      })
 
-    // Run inpainting
-    const result = inpaint(imageData, mask, 10)
+      setProgress(90)
 
-    setProgress(90)
-    await new Promise(r => setTimeout(r, 50))
+      // Draw result
+      ctx.putImageData(result, 0, 0)
 
-    // Draw result
-    ctx.putImageData(result, 0, 0)
+      // Clear mask overlay
+      maskCtx.clearRect(0, 0, w, h)
 
-    // Clear mask overlay
-    maskCtx.clearRect(0, 0, w, h)
-
-    setProgress(100)
-    setProcessing(false)
-    setProcessed(true)
+      setProgress(100)
+      setProcessing(false)
+      setProcessed(true)
+    } catch (err) {
+      console.error('Inpainting error:', err)
+      setProcessing(false)
+    }
   }
 
   const downloadResult = () => {

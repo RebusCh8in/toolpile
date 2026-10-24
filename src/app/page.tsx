@@ -14,6 +14,7 @@ interface Tool {
 const tools: Tool[] = [
   { name: "Video Watermark Remover", description: "Remove watermarks from videos of any length. No time limits, no upload, free forever.", href: "/tools/video-watermark-remover", icon: "\uD83C\uDFAC", category: "Design" },
   { name: "Photo Watermark Remover", description: "Remove watermarks from photos for free. No signup, no limits, 100% private.", href: "/tools/photo-watermark-remover", icon: "\u2702", category: "Design" },
+  { name: "Claude Code Text Formatter", description: "Clean up messy terminal & Claude Code output. Strip ANSI codes, line numbers, and control characters.", href: "/tools/claude-code-text-formatter", icon: ">_", category: "Developer" },
   { name: "QR Code Generator", description: "Generate customizable QR codes from any text or URL", href: "/tools/qr-code-generator", icon: "\u25A3", category: "Utility" },
   { name: "Color Palette Generator", description: "Create beautiful random color palettes with lock and export", href: "/tools/color-palette-generator", icon: "\u25D0", category: "Design" },
   { name: "CSS Gradient Generator", description: "Build linear, radial, and conic CSS gradients visually", href: "/tools/css-gradient-generator", icon: "\u25C8", category: "Design" },
@@ -106,6 +107,10 @@ const tools: Tool[] = [
   { name: "401(k) Calculator", description: "Project 401k growth with employer match, contributions, and investment returns.", href: "/tools/401k-calculator", icon: "\uD83C\uDFE6", category: "Finance" },
   { name: "Amortization Calculator", description: "Generate full amortization schedule with principal/interest breakdown. See extra payment savings.", href: "/tools/amortization-calculator", icon: "\uD83D\uDCC5", category: "Finance" },
   { name: "Income Tax Calculator", description: "Estimate federal income tax with 2026 brackets. Marginal and effective rate breakdown.", href: "/tools/income-tax-calculator", icon: "\uD83C\uDFDB", category: "Finance" },
+  { name: "Tax Calculator", description: "Calculate your total tax burden — federal, FICA, and state. See effective rate, bracket breakdown, and take-home pay.", href: "/tools/tax-calculator", icon: "\uD83E\uDDFE", category: "Finance" },
+  { name: "OBBBA Tax Savings Calculator", description: "Calculate your savings under the One Big Beautiful Bill Act — no tax on tips, overtime, senior deduction, and auto loan interest.", href: "/tools/obbba-tax-calculator", icon: "\uD83C\uDFDB\uFE0F", category: "Finance" },
+  { name: "Electricity Cost Calculator", description: "Calculate how much your appliances cost to run. See your monthly electric bill breakdown by appliance and category.", href: "/tools/electricity-cost-calculator", icon: "⚡", category: "Home & Energy" },
+  { name: "Medicaid Work Requirement Calculator", description: "Check if you must meet the new 80-hour work requirement, whether you qualify for an exemption, and what to do next.", href: "/tools/medicaid-work-requirement-calculator", icon: "🏥", category: "Health" },
   { name: "Debt Payoff Calculator", description: "Calculate how long to pay off debt and total interest. Compare extra payment scenarios.", href: "/tools/debt-payoff-calculator", icon: "\u26D3", category: "Finance" },
   { name: "Hourly to Salary Calculator", description: "Convert hourly wage to annual salary and vice versa. Accounts for vacation time.", href: "/tools/hourly-to-salary-calculator", icon: "\u23F1", category: "Finance" },
   { name: "Budget Calculator", description: "Plan your monthly budget with expense categories. Compare with the 50/30/20 rule.", href: "/tools/budget-calculator", icon: "\uD83D\uDCCB", category: "Finance" },
@@ -184,9 +189,33 @@ const tools: Tool[] = [
   { name: "Video to GIF Converter", description: "Convert any video to an animated GIF. Trim, resize, adjust frame rate. Free and private.", href: "/tools/video-to-gif", icon: "🎞", category: "Design" },
   { name: "Digital Signature Creator", description: "Create a digital signature by drawing, typing, or uploading. Download as PNG or SVG.", href: "/tools/digital-signature", icon: "✍", category: "Utility" },
   { name: "Meme Generator", description: "Create memes with custom text, fonts, and colors. No watermark, no signup required.", href: "/tools/meme-generator", icon: "😂", category: "Design" },
+  { name: "Income Percentile Calculator", description: "See where your income ranks compared to all Americans using Census data.", href: "/tools/income-percentile-calculator", icon: "%", category: "Finance" },
+  { name: "Net Worth Percentile Calculator", description: "Compare your net worth to other Americans by age group using Federal Reserve data.", href: "/tools/net-worth-percentile-calculator", icon: "$", category: "Finance" },
+  { name: "Life Insurance Calculator", description: "Calculate how much life insurance you need based on income, debts, and dependents.", href: "/tools/life-insurance-calculator", icon: "\uD83D\uDEE1\uFE0F", category: "Finance" },
+  { name: "Home Affordability Calculator", description: "Find out how much house you can afford based on income, debts, and down payment.", href: "/tools/home-affordability-calculator", icon: "\uD83C\uDFE0", category: "Finance" },
+  { name: "Business Loan Calculator", description: "Calculate business loan payments and compare SBA, term, and line of credit options.", href: "/tools/business-loan-calculator", icon: "\uD83C\uDFE2", category: "Finance" },
+  { name: "Credit Score Simulator", description: "Simulate how paying off debt, opening accounts, or missing payments affects your credit score.", href: "/tools/credit-score-simulator", icon: "\uD83D\uDCCA", category: "Finance" },
+  { name: "Self-Employment Tax Calculator", description: "Calculate self-employment tax, quarterly payments, and total tax burden for 1099 workers.", href: "/tools/self-employment-tax-calculator", icon: "\uD83D\uDCBC", category: "Finance" },
+  { name: "ChatGPT Ads Calculator", description: "Calculate ChatGPT ad ROI vs Google, Meta, and TikTok. Compare CPM, impressions, and conversions across platforms.", href: "/tools/chatgpt-ads-calculator", icon: "💬", category: "Marketing" },
+  { name: "Typing Speed Test", description: "Test your typing speed and accuracy. See your WPM, track progress, and compare against average speeds.", href: "/tools/typing-speed-test", icon: "⌨️", category: "Utility" },
+  { name: "Car Loan Interest Deduction Calculator", description: "Calculate your OBBBA car loan interest tax deduction for 2025-2028. See how much you'll save with the new auto loan deduction.", href: "/tools/car-loan-interest-deduction-calculator", icon: "🚗", category: "Finance" },
+  { name: "Student Loan Tax Bomb Calculator", description: "Calculate your tax bill when student loan forgiveness becomes taxable income. Check insolvency exclusion and plan ahead.", href: "/tools/student-loan-tax-bomb-calculator", icon: "🎓", category: "Finance" },
+  { name: "Trump Account Calculator", description: "See how the new Section 530A Trump Account could grow for your child. $1,000 government seed + $5,000/year contributions.", href: "/tools/trump-account-calculator", icon: "🇺🇸", category: "Finance" },
+  { name: "SAVE vs RAP Calculator", description: "Compare student loan payments under RAP, SAVE, IBR, and standard repayment. See how much more you'll pay under the new plan.", href: "/tools/save-vs-rap-calculator", icon: "🎓", category: "Finance" },
+  { name: "World Cup 2026 Schedule", description: "Complete FIFA World Cup 2026 schedule with all 48 teams, 12 groups, 16 venues. Convert match times to your local time zone.", href: "/tools/world-cup-2026-schedule", icon: "⚽", category: "Utility" },
+  { name: "Child Support Calculator", description: "Estimate child support payments by state. Covers all 50 states with income shares, percentage of income, and state-specific formulas.", href: "/tools/child-support-calculator", icon: "👨‍👧", category: "Legal" },
+  { name: "Alimony Calculator", description: "Estimate alimony (spousal support) payments for all 50 states. Uses state formulas, caps, and guidelines with duration estimates.", href: "/tools/alimony-calculator", icon: "⚖️", category: "Legal" },
+  { name: "Personal Injury Calculator", description: "Estimate your personal injury settlement using the insurance industry multiplier method. State negligence rules, damage caps, and policy limits.", href: "/tools/personal-injury-calculator", icon: "🩹", category: "Legal" },
+  { name: "Workers' Comp Calculator", description: "Estimate workers' compensation TTD benefits for all 50 states. State-specific rates, maximums, waiting periods, and tax-free benefit calculations.", href: "/tools/workers-comp-calculator", icon: "🏗️", category: "Legal" },
+  { name: "DUI Cost Calculator", description: "Estimate the total cost of a DUI/DWI in all 50 states. Fines, insurance increases, IID, attorney fees, jail time, and license suspension.", href: "/tools/dui-cost-calculator", icon: "🚗", category: "Legal" },
+  { name: "Bankruptcy Means Test", description: "Take the Chapter 7 bankruptcy means test. Compare income to state median, calculate disposable income with IRS deductions, determine Chapter 7 vs Chapter 13 eligibility.", href: "/tools/bankruptcy-means-test", icon: "📋", category: "Legal" },
+  { name: "Small Claims Court Calculator", description: "Check if your case fits in small claims court. Dollar limits, filing fees, statute of limitations, attorney rules, and appeal procedures for all 50 states.", href: "/tools/small-claims-calculator", icon: "⚖️", category: "Legal" },
+  { name: "VA Disability Calculator", description: "Calculate your VA combined disability rating using official VA math. 2026 compensation rates, dependent allowances, and TDIU eligibility.", href: "/tools/va-disability-calculator", icon: "🎖️", category: "Legal" },
+  { name: "Social Security Calculator", description: "Estimate your Social Security retirement benefits. 2026 PIA formula, bend points, claiming age adjustments, spousal benefits, and earnings test.", href: "/tools/social-security-calculator", icon: "🏛️", category: "Finance" },
+  { name: "Medicare Cost Calculator", description: "Estimate your 2026 Medicare costs. Part A, Part B, Part D premiums, IRMAA surcharges by income, deductibles, and Medigap costs.", href: "/tools/medicare-calculator", icon: "🏥", category: "Finance" },
 ];
 
-const categories = ["All", "Developer", "Design", "Text", "Utility", "Finance", "Health"];
+const categories = ["All", "Developer", "Design", "Text", "Utility", "Finance", "Legal", "Health", "Home & Energy", "Marketing"];
 
 export default function HomePage() {
   const [search, setSearch] = useState("");
@@ -214,7 +243,7 @@ export default function HomePage() {
         <p className="mx-auto max-w-lg text-lg text-zinc-400 leading-relaxed">
           Free online tools &amp; calculators, right in your browser.
           <br />
-          <span className="text-zinc-500">No signup. No data stored. Ever.</span>
+          <span className="text-zinc-400">No signup. No data stored. Ever.</span>
         </p>
       </div>
 
@@ -238,7 +267,7 @@ export default function HomePage() {
             className={`rounded-full px-5 py-2 text-sm font-medium transition-all ${
               activeCategory === cat
                 ? "bg-blue-600 text-white shadow-sm"
-                : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300"
+                : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300"
             }`}
           >
             {cat}
@@ -259,7 +288,7 @@ export default function HomePage() {
               {tool.name}
             </h2>
             <p className="text-sm text-zinc-400 leading-relaxed">{tool.description}</p>
-            <span className="mt-3 inline-block rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-500 group-hover:bg-blue-600/10 group-hover:text-blue-500 transition-colors">
+            <span className="mt-3 inline-block rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-400 group-hover:bg-blue-600/10 group-hover:text-blue-500 transition-colors">
               {tool.category}
             </span>
           </Link>
@@ -267,7 +296,7 @@ export default function HomePage() {
       </div>
 
       {filtered.length === 0 && (
-        <p className="mt-16 text-center text-zinc-500">
+        <p className="mt-16 text-center text-zinc-400">
           No tools found. Try a different search or category.
         </p>
       )}

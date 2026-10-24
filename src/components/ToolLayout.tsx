@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Script from "next/script";
+import EzoicPlaceholder from "./EzoicPlaceholder";
 
 export interface FAQ {
   question: string;
@@ -113,12 +114,20 @@ export default function ToolLayout({
         {/* Tool */}
         <div className="mb-12">{children}</div>
 
+        <div className="mb-12">
+          <EzoicPlaceholder id={101} />
+        </div>
+
         {/* Guide content */}
         {guide && (
           <article className="mb-12 prose-custom">
             {guide}
           </article>
         )}
+
+        <div className="mb-12">
+          <EzoicPlaceholder id={102} />
+        </div>
 
         {/* FAQ section */}
         {faqs && faqs.length > 0 && (

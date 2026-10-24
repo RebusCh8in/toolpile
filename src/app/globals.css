@@ -23,29 +23,39 @@
   --color-blue-50:  #FEF5F2;
   --color-blue-100: #FDE8E0;
   --color-blue-200: #F4C4B0;
-  --color-blue-300: #E8A090;
-  --color-blue-400: #D87860;
+  --color-blue-300: #A85545;
+  --color-blue-400: #C45D3E;
   --color-blue-500: #C45D3E;
   --color-blue-600: #A84D33;
   --color-blue-700: #8C3F29;
   --color-blue-800: #70321F;
   --color-blue-900: #542616;
 
-  /* Warmer greens */
-  --color-green-400: #5E9E40;
-  --color-green-500: #4D8B31;
-  --color-green-600: #3D7826;
+  /* Greens — darkened for light-bg readability (≥4.5:1 on cream) */
+  --color-green-300: #4A8530;
+  --color-green-400: #3D7826;
+  --color-green-500: #336B1F;
+  --color-green-600: #2A5A18;
 
-  /* Warmer reds */
-  --color-red-400: #DC6B5A;
-  --color-red-500: #C9503D;
+  /* Reds — darkened for light-bg readability */
+  --color-red-300: #C04A3A;
+  --color-red-400: #B5423A;
+  --color-red-500: #A33830;
 
-  /* Warmer yellows */
-  --color-yellow-500: #C89520;
+  /* Yellows — darkened for light-bg readability */
+  --color-yellow-300: #A88A20;
+  --color-yellow-400: #8F7510;
+  --color-yellow-500: #7A6408;
+
+  /* Oranges — darkened for light-bg readability */
+  --color-orange-300: #C86D38;
+  --color-orange-400: #B45820;
+  --color-orange-500: #9A4A18;
 
   /* Warmer purples */
-  --color-purple-400: #9A7BC4;
-  --color-purple-500: #7E5CA8;
+  --color-purple-300: #8A6AB4;
+  --color-purple-400: #7E5CA8;
+  --color-purple-500: #6B4A94;
 
   --font-sans: var(--font-body);
   --font-mono: var(--font-code);

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head><title>ToolPile Logo Generator</title></head>
+<body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;">
+<canvas id="c" width="512" height="512"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const size = 512;
+
+// Background - dark zinc
+ctx.fillStyle = '#18181b';
+ctx.beginPath();
+ctx.roundRect(0, 0, size, size, 64);
+ctx.fill();
+
+// Blue diamond
+const cx = size / 2;
+const cy = size / 2 - 20;
+const diamondSize = 140;
+
+ctx.fillStyle = '#3b82f6';
+ctx.beginPath();
+ctx.moveTo(cx, cy - diamondSize);
+ctx.lineTo(cx + diamondSize * 0.75, cy);
+ctx.lineTo(cx, cy + diamondSize);
+ctx.lineTo(cx - diamondSize * 0.75, cy);
+ctx.closePath();
+ctx.fill();
+
+// "TP" text inside diamond
+ctx.fillStyle = '#ffffff';
+ctx.font = 'bold 100px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+ctx.fillText('TP', cx, cy + 5);
+
+// "ToolPile" text below
+ctx.fillStyle = '#e4e4e7';
+ctx.font = '600 52px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+ctx.fillText('ToolPile', cx, cy + diamondSize + 70);
+
+// Download as PNG
+const link = document.createElement('a');
+link.download = 'toolpile-logo-512.png';
+link.href = canvas.toDataURL('image/png');
+link.click();
+
+document.body.innerHTML = '<div style="color:white;font-family:sans-serif;text-align:center;padding:40px;"><h2>Logo downloaded!</h2><img src="' + canvas.toDataURL('image/png') + '" style="width:256px;border-radius:32px;margin-top:20px;"><p style="color:#999;margin-top:20px;">512x512 PNG</p></div>';
+</script>
+</body>
+</html>

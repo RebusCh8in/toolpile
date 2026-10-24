@@ -9,11 +9,14 @@ export default function Footer() {
             <span className="text-blue-500 text-lg">&#9670;</span>
             <span className="font-display text-zinc-300">ToolPile</span>
           </div>
-          <div className="flex items-center gap-4 text-sm text-zinc-500">
-            <Link href="/privacy" className="hover:text-zinc-300 transition-colors">Privacy</Link>
-            <Link href="/terms" className="hover:text-zinc-300 transition-colors">Terms</Link>
+          <div className="flex items-center gap-4 text-sm text-zinc-400">
+            <Link href="/blog" className="hover:text-zinc-200 transition-colors">Blog</Link>
+            <Link href="/about" className="hover:text-zinc-200 transition-colors">About</Link>
+            <Link href="/contact" className="hover:text-zinc-200 transition-colors">Contact</Link>
+            <Link href="/privacy" className="hover:text-zinc-200 transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-zinc-200 transition-colors">Terms</Link>
           </div>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-zinc-400">
             &copy; {new Date().getFullYear()} ToolPile &middot; Free tools, no signup, no data stored.
           </p>
         </div>
