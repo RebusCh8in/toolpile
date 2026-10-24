@@ -1,0 +1,3 @@
+[build.environment]
+  # No server-side inference: avoid downloading unused native GPU libraries.
+  ONNXRUNTIME_NODE_INSTALL_CUDA = "skip"

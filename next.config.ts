@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: process.cwd(),
+  // AI inference is browser-only. Native ONNX/CUDA binaries are not used by
+  // the Next server and exceed Netlify's function upload limit on Linux.
+  outputFileTracingExcludes: {
+    "**/*": ["./node_modules/onnxruntime-node/bin/**/*"],
+  },
   experimental: {
     optimizeCss: true,
   },
