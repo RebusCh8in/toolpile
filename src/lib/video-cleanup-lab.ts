@@ -47,9 +47,8 @@ export function getCrop(region: Region, width: number, height: number) {
   const y = Math.max(0, Math.floor(region.y) - 4)
   const w = Math.min(width - x, Math.ceil(region.x + region.w) + 4 - x)
   const h = Math.min(height - y, Math.ceil(region.y + region.h) + 4 - y)
-  if (w > 256 || h > 256) throw new Error('Select a watermark up to 248 pixels across in the original video. Choose a smaller region.')
-  const cw = Math.min(512, width)
-  const ch = Math.min(512, height)
+  const cw = Math.min(width, Math.max(512, w + 128))
+  const ch = Math.min(height, Math.max(512, h + 128))
   const cx = Math.max(0, Math.min(width - cw, Math.floor(x + w / 2 - cw / 2)))
   const cy = Math.max(0, Math.min(height - ch, Math.floor(y + h / 2 - ch / 2)))
   return { x, y, w, h, cx, cy, cw, ch }

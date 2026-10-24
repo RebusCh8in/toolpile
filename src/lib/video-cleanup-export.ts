@@ -89,7 +89,7 @@ export function createVideoExporter() {
       }
       const { rate, fps, frames, color } = prepared
       const numerator = rate.split('/')[0]
-      const batch = 24
+      const batch = Math.max(1, Math.min(24, Math.floor(24 * 1024 * 1024 / Math.max(...areas.map(a => a.cw * a.ch * 3)))))
       const masks = areas.map(({ x, y, w, h, cx, cy, cw, ch }) => {
         const mask = new Uint8Array(cw * ch).fill(255)
         for (let my = y - cy; my < y - cy + h; my++) mask.fill(0, my * cw + x - cx, my * cw + x - cx + w)

@@ -367,7 +367,7 @@ export default function VideoWatermarkRemover() {
 
           <h3>Automatic Watermark Removal</h3>
           <p>Plain backgrounds use lighting and color matching; detailed scenes use AI reconstruction on your device. The tool chooses automatically for each scene.</p>
-          <p>Supports SDR videos up to 2 minutes, 150 MB, 1080p, and 60 fps. Keep each selection within 248 × 248 original pixels.</p>
+          <p>Supports SDR videos up to 2 minutes, 150 MB, 1080p, and 60 fps. Select the full watermark. Larger areas may lose more background detail.</p>
 
           <h3>How to Remove a Watermark</h3>
           <ol>
@@ -447,7 +447,7 @@ export default function VideoWatermarkRemover() {
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-zinc-500">Automatic repair · up to 2 minutes, 150 MB, 1080p, 60 fps. Each selection can be up to 248 × 248 original pixels.</p>
+              <p className="text-xs text-zinc-500">Automatic repair · up to 2 minutes, 150 MB, 1080p, 60 fps. Select the full watermark; larger areas may lose more background detail.</p>
               {previewLoading && <><p role="status" className="text-xs text-blue-400">{statusMsg}</p><button onClick={() => controller.current?.abort()}>Cancel</button></>}
             </div>
 
