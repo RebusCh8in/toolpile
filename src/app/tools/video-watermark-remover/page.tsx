@@ -6,19 +6,19 @@ import ToolLayout, { FAQ, RelatedTool } from '@/components/ToolLayout'
 const faqs: FAQ[] = [
   {
     question: "How do I remove a watermark from a video for free?",
-    answer: "Upload your video to this tool, draw a rectangle over the watermark, choose Smart Remove or Blur mode, and click Remove Watermark. Everything runs in your browser — no upload, no signup."
+    answer: "Upload your video to this tool, draw a rectangle over the watermark, click Remove Watermark. Everything runs in your browser — no upload, no signup."
   },
   {
-    question: "What is the difference between Smart Remove and Blur?",
-    answer: "Smart Remove interpolates surrounding pixels into the watermark area and softens the result so edges blend in. Blur applies a feathered Gaussian blur that completely obscures the watermark — useful when Smart Remove leaves artifacts on complex backgrounds."
+    question: "How does automatic watermark removal work?",
+    answer: "Plain backgrounds are repaired by matching surrounding lighting and color. Detailed scenes use an on-device AI model. The tool selects the approach automatically; complex motion can still leave artifacts."
   },
   {
     question: "Can I remove a watermark that moves around the video?",
-    answer: "Yes. Draw a separate rectangle over each position the watermark appears in. All selected regions are cleaned in a single pass, which handles TikTok-style watermarks that alternate between corners."
+    answer: "Yes. Draw a separate rectangle over each position the watermark appears in. Every selected region is repaired throughout the video. This can cover watermarks that alternate between corners, but does not track continuously moving watermarks."
   },
   {
     question: "Does removing a video watermark reduce quality?",
-    answer: "The tool uses FFmpeg with high-quality encoding (CRF 20) so the rest of your video stays sharp. Only the selected regions are modified. Audio is copied without re-encoding."
+    answer: "Selected regions are repaired and the video is re-encoded at high quality, with audio retained as AAC. The source frame rate is used; variable-rate footage is converted to a constant rate."
   },
   {
     question: "Is my video uploaded to a server?",
@@ -39,7 +39,6 @@ interface Rect {
   h: number
 }
 
-type Mode = 'delogo' | 'blur'
 
 type DragState =
   | { kind: 'draw'; originX: number; originY: number }
@@ -60,9 +59,8 @@ function track(event: string) {
 export default function VideoWatermarkRemover() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
-  // FFmpeg instance and input file persist across runs so the engine loads once
-  const ffmpegRef = useRef<import('@ffmpeg/ffmpeg').FFmpeg | null>(null)
-  const inputNameRef = useRef<string>('')
+  const controller = useRef<AbortController | null>(null)
+  useEffect(() => () => controller.current?.abort(), [])
   const dragRef = useRef<DragState | null>(null)
 
   const [videoFile, setVideoFile] = useState<File | null>(null)
@@ -71,10 +69,8 @@ export default function VideoWatermarkRemover() {
   const [regions, setRegions] = useState<Rect[]>([])
   const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 })
   const [nativeSize, setNativeSize] = useState({ width: 0, height: 0 })
-  const [progress, setProgress] = useState(0)
   const [statusMsg, setStatusMsg] = useState('')
   const [processedUrl, setProcessedUrl] = useState('')
-  const [mode, setMode] = useState<Mode>('delogo')
   const [error, setError] = useState('')
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -82,11 +78,19 @@ export default function VideoWatermarkRemover() {
   const [previewLoading, setPreviewLoading] = useState(false)
   const [showOriginal, setShowOriginal] = useState(false)
 
+  useEffect(() => () => { if (videoUrl) URL.revokeObjectURL(videoUrl) }, [videoUrl])
+  useEffect(() => () => { if (processedUrl) URL.revokeObjectURL(processedUrl) }, [processedUrl])
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
+
   // ── Upload ──
   const handleUpload = useCallback((file: File) => {
     if (videoUrl) URL.revokeObjectURL(videoUrl)
     if (processedUrl) URL.revokeObjectURL(processedUrl)
     if (previewUrl) URL.revokeObjectURL(previewUrl)
+    if (file.size > 150 * 1024 * 1024) { setError('Choose a video under 150 MB.'); return }
+    setDuration(0)
+    setCurrentTime(0)
+    setDisplaySize({width:0,height:0})
     const url = URL.createObjectURL(file)
     setVideoFile(file)
     setVideoUrl(url)
@@ -94,7 +98,6 @@ export default function VideoWatermarkRemover() {
     setError('')
     setProcessedUrl('')
     setPreviewUrl('')
-    inputNameRef.current = ''
     setStep('select')
     track('wm_upload')
   }, [videoUrl, processedUrl, previewUrl])
@@ -127,6 +130,7 @@ export default function VideoWatermarkRemover() {
   }, [displaySize])
 
   const seekTo = (time: number) => {
+    if (previewLoading) return
     const video = videoRef.current
     if (!video) return
     video.currentTime = time
@@ -216,6 +220,7 @@ export default function VideoWatermarkRemover() {
   }
 
   const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
+    if (previewLoading) return
     if ('touches' in e) e.preventDefault()
     const pos = getPos(e)
     const hit = hitTest(pos)
@@ -225,6 +230,7 @@ export default function VideoWatermarkRemover() {
   const handlePointerMove = (e: React.MouseEvent | React.TouchEvent) => {
     const drag = dragRef.current
     if (!drag) return
+    if (previewLoading) return
     if ('touches' in e) e.preventDefault()
     const pos = getPos(e)
 
@@ -274,189 +280,38 @@ export default function VideoWatermarkRemover() {
     if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl('') }
   }
 
-  // ── Region math: display px → native px ──
-  // delogo refuses rectangles that touch the frame edge, so inset by 1px.
-  const nativeRegions = useCallback((inset: boolean) => {
-    const sx = nativeSize.width / displaySize.width
-    const sy = nativeSize.height / displaySize.height
-    const pad = 4
-    const minEdge = inset ? 1 : 0
-    return regions.map(r => {
-      let x = Math.round(r.x * sx) - pad
-      let y = Math.round(r.y * sy) - pad
-      let w = Math.round(r.w * sx) + pad * 2
-      let h = Math.round(r.h * sy) + pad * 2
-      x = Math.max(minEdge, x)
-      y = Math.max(minEdge, y)
-      w = Math.max(2, Math.min(w, nativeSize.width - minEdge - x))
-      h = Math.max(2, Math.min(h, nativeSize.height - minEdge - y))
-      return { x, y, w, h }
-    })
-  }, [regions, nativeSize, displaySize])
-
-  // ── Filter graph ──
-  // Smart Remove: chained delogo, then a light feathered blur over the same
-  // regions to hide delogo's banding. Blur: strong feathered blur only.
-  const buildFilter = useCallback(() => {
-    const W = nativeSize.width
-    const H = nativeSize.height
-    const parts: string[] = []
-    let cur = '[0:v]'
-
-    if (mode === 'delogo') {
-      const chain = nativeRegions(true).map(r => `delogo=x=${r.x}:y=${r.y}:w=${r.w}:h=${r.h}`).join(',')
-      parts.push(`${cur}${chain}[dl]`)
-      cur = '[dl]'
-    }
-
-    const sigma = mode === 'delogo' ? 4 : 40
-    const feather = mode === 'delogo' ? 6 : 12
-    // expand mask boxes by ~2*feather so blurring the mask ramps to full
-    // strength at the original selection edge instead of at its center
-    const grow = feather * 2
-    const boxes = nativeRegions(false)
-      .map(r => {
-        const x = Math.max(0, r.x - grow)
-        const y = Math.max(0, r.y - grow)
-        const w = Math.min(r.w + grow * 2, W - x)
-        const h = Math.min(r.h + grow * 2, H - y)
-        return `drawbox=x=${x}:y=${y}:w=${w}:h=${h}:color=white:t=fill`
-      })
-      .join(',')
-
-    parts.push(`${cur}split=3[b0][b1][b2]`)
-    parts.push(`[b1]gblur=sigma=${sigma}[bl]`)
-    // Derive the mask from a split of the video itself so it always has the
-    // same frame count and timebase as the base/overlay. A standalone
-    // color=...:d=N source relies on framesync repeatlast to cover the rest of
-    // the clip, which the wasm ffmpeg build honors inconsistently — on a full
-    // render the mask drops out and maskedmerge passes the original through
-    // (watermark survives) even though a single-frame preview looks correct.
-    // drawbox t=fill paints the whole frame black then white over each region,
-    // so the underlying video content never bleeds into the mask.
-    // lut stretches limited-range (16-235) to full range so white merges at 100%.
-    parts.push(`[b2]drawbox=x=0:y=0:w=${W}:h=${H}:color=black:t=fill,${boxes},format=gray,gblur=sigma=${feather},lut=c0=clip((val-16)*255/219\\,0\\,255)[mk]`)
-    // libx264 + yuv420p require even dimensions
-    parts.push(`[b0][bl][mk]maskedmerge,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p[vout]`)
-    const filter = parts.join(';')
-    ;(window as unknown as { __lastFilter?: string }).__lastFilter = filter
-    return filter
-  }, [mode, nativeRegions, nativeSize])
-
-  // ── FFmpeg engine (loaded once, reused for previews and final render) ──
-  const getFFmpeg = async () => {
-    if (ffmpegRef.current) return ffmpegRef.current
-    const { FFmpeg } = await import('@ffmpeg/ffmpeg')
-    const { toBlobURL } = await import('@ffmpeg/util')
-    const ffmpeg = new FFmpeg()
-    ffmpeg.on('progress', ({ progress: p }) => setProgress(Math.min(Math.round(p * 100), 99)))
-    ffmpeg.on('log', ({ message }) => {
-      // ring buffer of recent log lines for debugging failed runs
-      const w = window as unknown as { __fflog?: string[] }
-      w.__fflog = [...(w.__fflog ?? []).slice(-300), message]
-      const m = message.match(/frame=\s*(\d+)/)
-      if (m) setStatusMsg(`Processing frame ${m[1]}...`)
-    })
-    setStatusMsg('Downloading video engine (~30 MB, cached after first use)...')
-    await ffmpeg.load({
-      coreURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js', 'text/javascript'),
-      wasmURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm', 'application/wasm'),
-    })
-    ffmpegRef.current = ffmpeg
-    return ffmpeg
-  }
-
-  const ensureInputWritten = async (ffmpeg: import('@ffmpeg/ffmpeg').FFmpeg) => {
-    if (inputNameRef.current || !videoFile) return inputNameRef.current
-    const { fetchFile } = await import('@ffmpeg/util')
-    setStatusMsg('Reading video file...')
-    const ext = videoFile.name.match(/\.[^.]+$/)?.[0] || '.mp4'
-    const name = `input${ext}`
-    await ffmpeg.writeFile(name, await fetchFile(videoFile))
-    inputNameRef.current = name
-    return name
-  }
-
-  useEffect(() => () => { ffmpegRef.current?.terminate() }, [])
-
-  // ── Instant single-frame preview ──
-  const renderPreview = async () => {
-    if (!videoFile || regions.length === 0 || previewLoading) return
-    setPreviewLoading(true)
+  // One automatic repair engine for both previews and full exports.
+  const runRepair = async (preview: boolean) => {
+    if (!videoFile || !regions.length || !displaySize.width || controller.current) return
+    const current = new AbortController()
+    controller.current = current
     setError('')
+    if (preview) setPreviewLoading(true)
+    else setStep('processing')
     try {
-      const ffmpeg = await getFFmpeg()
-      const inputName = await ensureInputWritten(ffmpeg)
-      setStatusMsg('')
-      const t = videoRef.current?.currentTime ?? 0
-      await ffmpeg.exec([
-        '-ss', t.toFixed(3), '-i', inputName!,
-        '-frames:v', '1',
-        '-filter_complex', buildFilter(),
-        '-map', '[vout]',
-        '-y', 'preview.png',
-      ])
-      const data = await ffmpeg.readFile('preview.png')
-      const raw = data as Uint8Array
-      const copy = new ArrayBuffer(raw.byteLength)
-      new Uint8Array(copy).set(raw)
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-      setPreviewUrl(URL.createObjectURL(new Blob([copy], { type: 'image/png' })))
-      await ffmpeg.deleteFile('preview.png').catch(() => {})
+      const { exportVideo } = await import('@/lib/video-cleanup-export')
+      const { runComparison, getCrop } = await import('@/lib/video-cleanup-lab')
+      const areas = regions.map(r => ({ x: r.x / displaySize.width * nativeSize.width, y: r.y / displaySize.height * nativeSize.height,
+        w: r.w / displaySize.width * nativeSize.width, h: r.h / displaySize.height * nativeSize.height }))
+      for (const area of areas) getCrop(area, nativeSize.width, nativeSize.height)
+      let input = videoFile
+      let output: Blob = input
+      for (let i = 0; i < areas.length; i++) {
+        const status = (text: string) => setStatusMsg(areas.length > 1 ? `Region ${i + 1} of ${areas.length}: ${text}` : text)
+        output = preview
+          ? (await runComparison(input, areas[i], nativeSize.width, nativeSize.height, i === 0 ? currentTime : 0, status, current.signal)).ai
+          : (await exportVideo(input, areas[i], nativeSize.width, nativeSize.height, duration, status, current.signal)).video
+        input = new File([output], 'cleanup.mp4', { type: 'video/mp4' })
+      }
+      if (preview) setPreviewUrl(URL.createObjectURL(output))
+      else { setProcessedUrl(URL.createObjectURL(output)); setStep('done'); track('wm_removed') }
     } catch (err) {
-      console.error('Preview error:', err)
-      setError(`Preview failed: ${err instanceof Error ? err.message : String(err)}`)
-    } finally {
-      setPreviewLoading(false)
-    }
+      setError(current.signal.aborted ? 'Cancelled. Adjust your selection or try again.' : err instanceof Error ? err.message : String(err))
+      if (!preview) setStep('select')
+    } finally { controller.current = null; setPreviewLoading(false) }
   }
-
-  // ── Full render ──
-  const processVideo = async () => {
-    if (!videoFile || regions.length === 0 || !displaySize.width) return
-    setStep('processing')
-    setProgress(0)
-    setError('')
-    try {
-      const ffmpeg = await getFFmpeg()
-      const inputName = await ensureInputWritten(ffmpeg)
-
-      setStatusMsg('Removing watermark...')
-      // Cap output at the source duration in case the filter graph over-runs
-      const durationCap = duration > 0 ? ['-t', (duration + 0.5).toFixed(2)] : []
-      // Opus/Vorbis (webm audio) can't be copied into MP4 — transcode those
-      const audioArgs = /\.webm$/i.test(inputName!) ? ['-c:a', 'aac', '-b:a', '192k'] : ['-c:a', 'copy']
-      await ffmpeg.exec([
-        '-i', inputName!,
-        '-filter_complex', buildFilter(),
-        '-map', '[vout]', '-map', '0:a?',
-        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '20',
-        '-movflags', '+faststart',
-        ...audioArgs,
-        ...durationCap,
-        '-y', 'output.mp4',
-      ])
-
-      setStatusMsg('Preparing download...')
-      const data = await ffmpeg.readFile('output.mp4')
-      const raw = data as Uint8Array
-      const copy = new ArrayBuffer(raw.byteLength)
-      new Uint8Array(copy).set(raw)
-      const blob = new Blob([copy], { type: 'video/mp4' })
-      if (blob.size < 1000) throw new Error('Output video is empty. Try a different mode.')
-      await ffmpeg.deleteFile('output.mp4').catch(() => {})
-
-      if (processedUrl) URL.revokeObjectURL(processedUrl)
-      setProcessedUrl(URL.createObjectURL(blob))
-      setProgress(100)
-      setStep('done')
-      track('wm_removed')
-    } catch (err) {
-      console.error('Processing error:', err)
-      setError(`Processing failed: ${err instanceof Error ? err.message : String(err)}`)
-      setStep('select')
-    }
-  }
+  const renderPreview = () => runRepair(true)
+  const processVideo = () => runRepair(false)
 
   const downloadResult = () => {
     if (!processedUrl) return
@@ -477,11 +332,9 @@ export default function VideoWatermarkRemover() {
     setPreviewUrl('')
     setRegions([])
     setStep('upload')
-    setProgress(0)
     setStatusMsg('')
     setError('')
     setDisplaySize({ width: 0, height: 0 })
-    inputNameRef.current = ''
   }
 
   const formatTime = (s: number) => {
@@ -490,15 +343,10 @@ export default function VideoWatermarkRemover() {
     return `${m}:${sec.toString().padStart(2, '0')}`
   }
 
-  const modeDescriptions: Record<Mode, { label: string; desc: string }> = {
-    delogo: { label: 'Smart Remove', desc: 'Interpolates surrounding pixels into the watermark area, then softens the patch so it blends in. Best for most watermarks.' },
-    blur: { label: 'Blur', desc: 'Feathered gaussian blur over the selected areas. Works on any background.' },
-  }
-
   return (
     <ToolLayout
       title="Video Watermark Remover"
-      description="Remove watermarks from any video for free. Smart Remove and Blur modes, multiple regions, instant preview. No upload, no signup, runs entirely in your browser."
+      description="Remove watermarks from video for free. Automatic on-device repair, multiple regions, and video preview. No upload, no signup, runs entirely in your browser."
       category="Design"
       slug="video-watermark-remover"
       faqs={faqs}
@@ -517,21 +365,19 @@ export default function VideoWatermarkRemover() {
         <>
           <h2>What Is the Video Watermark Remover?</h2>
           <p>
-            The Video Watermark Remover is a free browser-based tool that removes watermarks, logos, and text overlays from any video file. It uses FFmpeg compiled to WebAssembly, running entirely in your browser with no server uploads.
+            The Video Watermark Remover is a free browser-based tool that removes watermarks, logos, and text overlays from supported video files. It uses FFmpeg compiled to WebAssembly, running entirely in your browser with no server uploads.
           </p>
 
-          <h3>Two Removal Modes</h3>
-          <ul>
-            <li><strong>Smart Remove</strong> — Interpolates surrounding pixels into the watermark area and softens the patch so edges blend in. Fast and effective for most watermarks, especially on simple or uniform backgrounds.</li>
-            <li><strong>Blur</strong> — Applies a feathered Gaussian blur that completely obscures the watermark. Use when Smart Remove leaves artifacts, or when the watermark is on a very complex moving background.</li>
-          </ul>
+          <h3>Automatic Watermark Removal</h3>
+          <p>Plain backgrounds use lighting and color matching; detailed scenes use AI reconstruction on your device. The tool chooses automatically for each scene.</p>
+          <p>Supports SDR videos up to 2 minutes, 150 MB, 1080p, and 60 fps. Keep each selection within 248 × 248 original pixels.</p>
 
           <h3>How to Remove a Watermark</h3>
           <ol>
             <li>Upload your video file (MP4, WebM, MOV).</li>
             <li>Scrub the timeline to find a frame where the watermark is visible.</li>
             <li>Click and drag a rectangle over the watermark. Drag to move it, or pull a corner to resize. Add more rectangles if the watermark changes position.</li>
-            <li>Click Preview to check the result on the current frame.</li>
+            <li>Click Preview to check a three-second sample.</li>
             <li>Click Remove Watermark and wait for processing.</li>
             <li>Preview the full result and download.</li>
           </ol>
@@ -540,15 +386,15 @@ export default function VideoWatermarkRemover() {
           <ul>
             <li>Draw the rectangle as tightly as possible — a smaller selection produces cleaner results.</li>
             <li>For TikTok-style watermarks that jump between corners, draw one rectangle per position.</li>
-            <li>Use Preview before processing: it renders the current frame with your settings in a couple of seconds.</li>
-            <li>Use Blur as a fallback when Smart Remove leaves visible artifacts.</li>
+            <li>Use the three-second preview to check the result before processing the full video.</li>
+            <li>Watch for flicker and lost detail across scene changes. Smaller, tighter selections usually work better.</li>
           </ul>
         </>
       }
     >
       <div className="space-y-6">
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl p-4 text-sm">
+          <div role="alert" className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl p-4 text-sm">
             {error}
           </div>
         )}
@@ -563,11 +409,12 @@ export default function VideoWatermarkRemover() {
           >
             <div className="text-5xl mb-4">🎬</div>
             <p className="text-lg text-zinc-300 mb-2">Drop a video here or click to upload</p>
-            <p className="text-sm text-zinc-500">MP4, WebM, MOV — any length, any size</p>
+            <p className="text-sm text-zinc-500">MP4, WebM, MOV · Up to 2 minutes, 150 MB, 1080p, 60 fps</p>
             <p className="text-xs text-zinc-600 mt-3">
               Powered by FFmpeg WebAssembly. Everything runs in your browser.
             </p>
             <input
+              aria-label="Choose a video"
               id="video-upload"
               type="file"
               accept="video/*"
@@ -583,22 +430,8 @@ export default function VideoWatermarkRemover() {
             {/* Mode selector + actions */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm text-zinc-400 mr-1">Mode:</span>
-                {(['delogo', 'blur'] as Mode[]).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => { setMode(m); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl('') } }}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                      mode === m
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                    }`}
-                  >
-                    {modeDescriptions[m].label}
-                  </button>
-                ))}
                 <div className="flex gap-2 ml-auto">
-                  <button onClick={reset} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg px-4 py-2 text-sm transition-colors">
+                  <button onClick={reset} disabled={previewLoading} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg px-4 py-2 text-sm transition-colors">
                     New Video
                   </button>
                   <button
@@ -606,19 +439,19 @@ export default function VideoWatermarkRemover() {
                     disabled={regions.length === 0 || previewLoading}
                     className="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
                   >
-                    {previewLoading ? 'Rendering…' : 'Preview'}
+                    {previewLoading ? 'Rendering…' : 'Preview 3 seconds'}
                   </button>
                   <button
                     onClick={processVideo}
-                    disabled={regions.length === 0}
+                    disabled={regions.length === 0 || previewLoading || !Number.isFinite(duration) || !duration}
                     className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg px-6 py-2 text-sm font-medium transition-colors"
                   >
                     Remove Watermark
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-zinc-500">{modeDescriptions[mode].desc}</p>
-              {statusMsg && previewLoading && <p className="text-xs text-blue-400">{statusMsg}</p>}
+              <p className="text-xs text-zinc-500">Automatic repair · up to 2 minutes, 150 MB, 1080p, 60 fps. Each selection can be up to 248 × 248 original pixels.</p>
+              {previewLoading && <><p role="status" className="text-xs text-blue-400">{statusMsg}</p><button onClick={() => controller.current?.abort()}>Cancel</button></>}
             </div>
 
             {/* Timeline scrubber */}
@@ -627,7 +460,7 @@ export default function VideoWatermarkRemover() {
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-zinc-500 w-12">{formatTime(currentTime)}</span>
                   <input
-                    type="range" min={0} max={duration} step={0.1}
+                    aria-label="Video timeline" disabled={previewLoading} type="range" min={0} max={duration} step={0.1}
                     value={currentTime}
                     onChange={e => seekTo(Number(e.target.value))}
                     className="flex-1"
@@ -653,20 +486,21 @@ export default function VideoWatermarkRemover() {
                   playsInline
                   preload="auto"
                   onLoadedMetadata={onVideoMetadata}
+                  onError={() => setError('This browser cannot decode the video. Try an H.264 MP4.')}
                   style={{ width: displaySize.width || '100%', height: displaySize.height || 'auto' }}
                   className="rounded block"
                 />
                 {previewUrl && !showOriginal && (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
+                  <video autoPlay muted loop playsInline
                     src={previewUrl}
-                    alt="Processed frame preview"
+                    aria-label="Cleaned three-second preview"
                     className="absolute top-0 left-0 rounded pointer-events-none"
                     style={{ width: displaySize.width, height: displaySize.height }}
                   />
                 )}
                 {displaySize.width > 0 && (
                   <canvas
+                    aria-label="Watermark selection area"
                     ref={overlayRef}
                     className="absolute top-0 left-0 rounded"
                     style={{ width: displaySize.width, height: displaySize.height, cursor: 'crosshair', touchAction: 'none' }}
@@ -701,6 +535,7 @@ export default function VideoWatermarkRemover() {
                   <span key={i} className="inline-flex items-center gap-2 bg-zinc-800 border border-zinc-700 text-zinc-300 rounded-lg px-3 py-1.5 text-xs">
                     Region {i + 1} · {Math.round(r.w)}×{Math.round(r.h)}
                     <button
+                      disabled={previewLoading}
                       onClick={() => removeRegion(i)}
                       className="text-zinc-500 hover:text-red-400 transition-colors"
                       aria-label={`Remove region ${i + 1}`}
@@ -718,7 +553,7 @@ export default function VideoWatermarkRemover() {
               <ol className="text-sm text-zinc-400 space-y-1 list-decimal list-inside">
                 <li>Scrub to a frame where the watermark is visible</li>
                 <li>Draw a rectangle over the watermark — add more if it changes position</li>
-                <li>Click <strong className="text-zinc-300">Preview</strong> to check the result on this frame</li>
+                <li>Click <strong className="text-zinc-300">Preview</strong> to check a three-second sample</li>
                 <li>Click &ldquo;Remove Watermark&rdquo; — audio is preserved</li>
               </ol>
             </div>
@@ -730,19 +565,8 @@ export default function VideoWatermarkRemover() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
             <div className="text-5xl mb-6">⚙️</div>
             <h2 className="text-xl font-semibold text-zinc-100 mb-2">Processing Video</h2>
-            <p className="text-sm text-zinc-400 mb-6">{statusMsg}</p>
-            <div className="max-w-md mx-auto mb-6">
-              <div className="flex justify-between text-sm text-zinc-400 mb-1">
-                <span>{progress > 0 ? 'Encoding' : 'Loading'}</span>
-                <span>{progress}%</span>
-              </div>
-              <div className="w-full bg-zinc-800 rounded-full h-3">
-                <div
-                  className="h-3 rounded-full transition-all duration-300 bg-blue-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
+            <p role="status" className="text-sm text-zinc-400 mb-6">{statusMsg}</p>
+            <button onClick={() => controller.current?.abort()} className="mb-6 rounded-lg border px-5 py-2">Cancel</button>
             <p className="text-xs text-zinc-500">
               FFmpeg is processing your video locally. Keep this tab open.
             </p>
@@ -755,7 +579,7 @@ export default function VideoWatermarkRemover() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
               <div className="text-5xl mb-4">✅</div>
               <h2 className="text-xl font-semibold text-zinc-100 mb-2">Watermark Removed</h2>
-              <p className="text-sm text-zinc-400 mb-6">Preview below. Audio has been preserved.</p>
+              <p className="text-sm text-zinc-400 mb-6">Preview below. Audio is retained; variable-rate footage uses a constant output frame rate.</p>
               <div className="flex gap-3 justify-center flex-wrap">
                 <button onClick={downloadResult} className="bg-green-600 hover:bg-green-500 text-white rounded-lg px-8 py-3 text-sm font-medium transition-colors">
                   Download Video (MP4)
@@ -763,7 +587,7 @@ export default function VideoWatermarkRemover() {
                 <button onClick={() => { setStep('select'); setError(''); }} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg px-6 py-3 text-sm transition-colors">
                   Adjust &amp; Retry
                 </button>
-                <button onClick={reset} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg px-6 py-3 text-sm transition-colors">
+                <button onClick={reset} disabled={previewLoading} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg px-6 py-3 text-sm transition-colors">
                   New Video
                 </button>
               </div>

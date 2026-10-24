@@ -46,7 +46,7 @@ export default function PdfToWord() {
 
       // Load pdf.js from CDN
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs' as string) as any
+      const pdfjsLib = await import(/* webpackIgnore: true */ 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs' as string) as any
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs'
 
       setStatusMsg('Reading PDF...')

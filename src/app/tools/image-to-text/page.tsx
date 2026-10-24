@@ -73,7 +73,7 @@ export default function ImageToText() {
       setStatusMsg('Loading OCR engine...')
 
       // Dynamic import of Tesseract.js
-      const Tesseract = await import('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js' as string)
+      const Tesseract = await import(/* webpackIgnore: true */ 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js' as string)
 
       setStatusMsg('Recognizing text...')
       const result = await Tesseract.recognize(preview, lang, {

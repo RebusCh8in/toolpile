@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/prepare-video-lab.mjs && next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },
@@ -26,7 +26,8 @@
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "onnxruntime-cleanup": "npm:onnxruntime-web@1.23.2"
   },
   "browserslist": [
     "chrome >= 90",
@@ -42,6 +43,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@ffmpeg/core": "0.12.6"
   }
 }
