@@ -78,9 +78,12 @@ export function createVideoExporter() {
           if (match) frames = Math.max(frames, Number(match[1]))
         }
         status(`Preparing ${preview ? "a three-second preview" : "the full video"} at ${fps.toFixed(3)} fps…`)
+        // Browser videoWidth/videoHeight include display-aspect metadata. Match
+        // that coordinate space before cropping (e.g. 490 coded pixels can be
+        // displayed as 491), then pad only for the encoder's even-size rule.
         engine.on('log', count)
         try {
-          await exec(engine, [...(preview ? ['-ss', String(options.previewStart)] : []), '-i', 'input', ...(preview ? ['-t', '3'] : []), '-map', '0:v:0', '-map', '0:a:0?', '-vf', `fps=${rate},pad=ceil(iw/2)*2:ceil(ih/2)*2`,
+          await exec(engine, [...(preview ? ['-ss', String(options.previewStart)] : []), '-i', 'input', ...(preview ? ['-t', '3'] : []), '-map', '0:v:0', '-map', '0:a:0?', '-vf', `fps=${rate},scale=${width}:${height}:flags=accurate_rnd+full_chroma_int,setsar=1,pad=ceil(iw/2)*2:ceil(ih/2)*2`,
             '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-y', 'source.mp4'], signal)
         } finally { engine.off('log', count) }
         await engine.deleteFile('input')
