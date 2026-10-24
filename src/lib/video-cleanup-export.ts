@@ -1,4 +1,5 @@
 import { bytes, exec, getCrop, loadEngine, request, TO_RGB, sourceRate, videoBlob, videoColor, type Region } from './video-cleanup-lab'
+import { undoTransparentWatermark } from '../../public/video-lab/transparent-watermark.mjs'
 import { isSceneCut, smoothShotChoices } from '../../public/video-lab/smooth-background.mjs'
 
 export type ExportResult = { video: Blob; frames: number; fps: number; seconds: number; backend: string }
@@ -16,6 +17,7 @@ export function createVideoExporter() {
   let gpu: boolean | undefined
   let idle: ReturnType<typeof setTimeout> | undefined
   const crops = new Map<string, Uint8Array>()
+  const transparencies = new Map<string, Float32Array | null>()
   const assessments = new Map<string, boolean[]>()
   let cropBytes = 0
   const cacheLimit = 48 * 1024 * 1024
@@ -30,6 +32,7 @@ export function createVideoExporter() {
     prepared = undefined
     crops.clear()
     assessments.clear()
+    transparencies.clear()
     cropBytes = 0
     lifetime = new AbortController()
   }
@@ -57,7 +60,7 @@ export function createVideoExporter() {
       const { engine } = loaded
       if (prepared && prepared.previewStart !== options.previewStart) {
         // A new time window needs new footage, but not a new model/session.
-        prepared = undefined; crops.clear(); assessments.clear(); cropBytes = 0
+        prepared = undefined; crops.clear(); assessments.clear(); transparencies.clear(); cropBytes = 0
       }
       worker ??= new Worker('/video-lab/inpaint-worker.js', { type: 'module' })
       const inference = worker
@@ -113,13 +116,16 @@ export function createVideoExporter() {
         return raw
       }
       const choices: boolean[][] = []
+      const alphaMaps: (Float32Array | null)[] = []
       for (let area = 0; area < areas.length; area++) {
         const key = JSON.stringify(areas[area])
         const cached = assessments.get(key)
-        if (cached) { choices.push(cached); continue }
+        if (cached) { choices.push(cached); alphaMaps.push(transparencies.get(key) ?? null); continue }
         const { cw, ch } = areas[area]
         const stride = cw * ch * 3
         const eligible: boolean[] = [], cuts: boolean[] = []
+        const samples: Uint8Array[] = []
+        const sampleEvery = Math.max(1, Math.ceil(frames / Math.min(40, Math.floor(24 * 1024 * 1024 / (cw * ch)))))
         let previous: Uint8Array | undefined
         for (let first = 0; first < frames; first += batch) {
           const length = Math.min(batch, frames - first)
@@ -127,17 +133,26 @@ export function createVideoExporter() {
           for (let i = 0; i < length; i++) {
             status(`Checking backgrounds${areas.length > 1 ? ` (region ${area + 1}/${areas.length})` : ''}: frame ${first + i + 1} of ${frames}…`)
             const pixels = raw.slice(i * stride, (i + 1) * stride)
+            if ((first + i) % sampleEvery === 0) {
+              const gray = new Uint8Array(cw * ch)
+              for (let p = 0; p < gray.length; p++) gray[p] = Math.round((pixels[p * 3] + pixels[p * 3 + 1] + pixels[p * 3 + 2]) / 3)
+              samples.push(gray)
+            }
             cuts.push(!previous || isSceneCut(previous, pixels, masks[area]))
             previous = pixels.slice()
             eligible.push((await request(inference, { kind: 'assess', pixels, mask: masks[area], width: cw, height: ch }, signal, [pixels.buffer])).smooth)
           }
         }
+        status('Checking translucent watermark detail…')
+        const { alpha } = await request(inference, { kind: 'transparent', samples, width: cw, height: ch, mask: masks[area] }, signal, samples.map(s => s.buffer))
+        alphaMaps.push(alpha)
+        transparencies.set(key, alpha)
         const decision = smoothShotChoices(eligible, cuts)
         assessments.set(key, decision)
         choices.push(decision)
       }
       status('Loading the cleanup model…')
-      const { backend } = await request(inference, { kind: 'load', preferGpu, smooth: choices.every(c => c.every(Boolean)) }, signal)
+      const { backend } = await request(inference, { kind: 'load', preferGpu, smooth: choices.every((c, i) => alphaMaps[i] || c.every(Boolean)) }, signal)
       const segments: string[] = []
       for (let first = 0; first < frames; first += batch) {
         const length = Math.min(batch, frames - first)
@@ -151,6 +166,11 @@ export function createVideoExporter() {
           for (let i = 0; i < length; i++) {
             status(`Removing watermark${areas.length > 1 ? ` (region ${area + 1}/${areas.length})` : ''}: frame ${first + i + 1} of ${frames}…`)
             const pixels = raw.slice(i * stride, (i + 1) * stride)
+            if (alphaMaps[area]) {
+              undoTransparentWatermark(pixels, alphaMaps[area]!)
+              raw.set(pixels, i * stride)
+              continue
+            }
             const result = await request(inference, { pixels, mask: masks[area], width: cw, height: ch, smooth: choices[area][first + i] }, signal, [pixels.buffer])
             raw.set(result.pixels, i * stride)
           }
@@ -183,7 +203,7 @@ export function createVideoExporter() {
       for (const entry of await engine.listDir('/')) {
         if (!entry.isDir && entry.name !== 'source.mp4') await engine.deleteFile(entry.name)
       }
-      return { video, frames, fps, seconds: frames / fps, backend }
+      return { video, frames, fps, seconds: frames / fps, backend: alphaMaps.every(Boolean) ? "Translucent overlay reconstruction (local)" : backend }
     } catch (error) { dispose(); throw error }
     finally {
       signal.removeEventListener('abort', abort)

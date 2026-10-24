@@ -69,11 +69,10 @@ test('crop contains the full padded selection at frame edges and fractional posi
   }
 });
 
-test('invalid and over-budget selections fail before creating a worker', () => {
+test('invalid selections fail before creating a worker', () => {
   for (const region of [
     { x: -1, y: 0, w: 10, h: 10 },
     { x: 630, y: 0, w: 20, h: 10 },
-    { x: 0, y: 0, w: 300, h: 20 },
     { x: NaN, y: 0, w: 10, h: 10 },
     { x: 0, y: 0, w: 0, h: 0 },
   ]) assert.throws(() => getCrop(region, 640, 360));

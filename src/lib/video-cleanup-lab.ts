@@ -101,7 +101,7 @@ export async function videoBlob(engine: FFmpeg, name: string) {
   return new Blob([data.buffer as ArrayBuffer], { type: 'video/mp4' })
 }
 
-export function request(worker: Worker, data: object, signal: AbortSignal, transfer: Transferable[] = []): Promise<{ pixels: Uint8Array; backend: string; smooth: boolean }> {
+export function request(worker: Worker, data: object, signal: AbortSignal, transfer: Transferable[] = []): Promise<{ pixels: Uint8Array; backend: string; smooth: boolean; alpha: Float32Array | null }> {
   return new Promise((resolve, reject) => {
     const cleanup = () => {
       worker.onmessage = null

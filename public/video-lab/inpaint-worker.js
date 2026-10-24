@@ -2,6 +2,7 @@
 // while supported neural-network operations use the GPU, when available.
 import * as ort from './runtime/ort.all.min.mjs';
 import { repairWeights, blendRepair } from './blend-repair.mjs';
+import { estimateTransparentWatermark } from './transparent-watermark.mjs';
 import { smoothBackground } from './smooth-background.mjs';
 ort.env.wasm.wasmPaths = '/video-lab/runtime/';
 ort.env.wasm.numThreads = 1;
@@ -9,6 +10,11 @@ let session;
 let backend = 'CPU (WASM)';
 self.onmessage = async ({ data }) => {
   try {
+    if (data.kind === 'transparent') {
+      const alpha = estimateTransparentWatermark(data.samples, data.width, data.height, data.mask);
+      self.postMessage({ alpha }, alpha ? [alpha.buffer] : []);
+      return;
+    }
     if (data.kind === 'assess') {
       if (data.width > 512 || data.height > 512) { self.postMessage({ smooth: false }); return; }
       self.postMessage({ smooth: smoothBackground(data.pixels, data.mask, data.width, data.height, {}, false) !== null });
@@ -41,7 +47,12 @@ self.onmessage = async ({ data }) => {
       const sw = Math.max(1, Math.round(width * scale));
       const sh = Math.max(1, Math.round(height * scale));
       const source = new OffscreenCanvas(width, height);
-      source.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(pixels), width, height), 0, 0);
+      const sourceRgba = new Uint8ClampedArray(width * height * 4);
+      for (let i = 0; i < width * height; i++) {
+        sourceRgba.set(pixels.subarray(i * 3, i * 3 + 3), i * 4);
+        sourceRgba[i * 4 + 3] = 255;
+      }
+      source.getContext('2d').putImageData(new ImageData(sourceRgba, width, height), 0, 0);
       const small = new OffscreenCanvas(sw, sh);
       const ctx = small.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(source, 0, 0, sw, sh);
