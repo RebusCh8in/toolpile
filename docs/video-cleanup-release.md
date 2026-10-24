@@ -25,3 +25,27 @@ The GitHub main branch (04ac552) contained 41 pages, while the live site's sitem
 ## Handoff
 
 User requested to test the local release before publishing. Local production server is on port 3013. No push to main or live deployment has occurred. Production Netlify site is e8405535-1790-4871-8cb4-853703c702dd; previous live deployment is 6a582d7978f0546b40f54876. Wait for the user's test feedback before publication.
+
+## Local performance update — 2026-10-23
+
+Not deployed. The local production server on port 3013 includes the speed update; the earlier Netlify draft does not.
+
+- The page owns a repair session. It retains the model, normalized source, and bounded 48 MiB crop cache for up to 60 seconds between operations, with explicit cleanup on new video, cancel/error, reset, and unmount. Cached crops are copied before repair so later runs cannot read mutated data.
+- Previews and full exports now share this session and use one adaptive pipeline. Changing the preview start or switching to full export invalidates the prepared footage and assessments, while retaining the model. The preview no longer computes an unused old-method result.
+- Multiple selections share source preparation and a single final composite/encode per batch, instead of processing the full video again for each selection. Each patch is cropped before being transferred to the video engine, reducing temporary data. Multi-region results avoid extra lossy encoding passes; they are not expected to be byte-identical to the old sequential pipeline.
+- Model, repair/blend math, full-export resolution/frame rate, CRF, preset, and audio settings remain unchanged.
+
+Measured in the same local Chrome session using the three-second 1280×720 fountain fixture:
+
+| Operation | Previous | Optimized |
+| --- | ---: | ---: |
+| Single-region retry | 14.89 s | 10.62 s |
+| Two regions, fresh source | 28.67 s | 26.55 s |
+
+The initial original run took 26.77 s. Optimized fresh-session runs varied from 38.21 s to 14.16 s, with most variation in model initialization/inference. Do not claim a reliable large first-run gain or extrapolate to phones. A later final-build retry took 23.23 s despite skipping preparation/model creation; inference timing varied substantially. The 29% retry figure is one paired observation, not a guaranteed or established average speedup. Controlled sequential repeats are recorded below. The two-region observation was a modest ~7% improvement.
+
+Baseline, original retry, optimized fresh export, optimized retry, and final-build single export have identical SHA256: 89bae5ea13f1d8625d76e52c330705c4a3ef1b7a5c3a1abf4300aefcc2293a49. This verifies exact preservation of the tested single-region output, including audio; it is not universal quality certification.
+
+The final preview-to-full test used a 4.2-second, 25 fps silent clip and a preview start of 0.5 seconds. Preview was 3 seconds; full export retained all 105 frames at exactly 25 fps / 4.2 seconds. This guards against reusing truncated or 12 fps preview footage for full export. Active inference cancellation returned an enabled retry state. Ten automated tests (including repeated model loading/CPU fallback reuse), production build, targeted lint/type checks, and the unchanged 289-URL sitemap comparison pass. Benchmark outputs/reports live under ignored output/bench/.
+
+Controlled retry comparison (three runs each, no concurrent builds or other inference): original 16.769 / 13.656 / 13.412 seconds; optimized 9.956 / 9.879 / 9.883 seconds. Median 13.656 → 9.883 seconds, a 27.6% reduction on this fixture. These are retries with the source and model retained in the optimized session, not first-load timings. Final cancellation followed by a completed retry also produced the identical SHA256 above.

@@ -59,8 +59,9 @@ function track(event: string) {
 export default function VideoWatermarkRemover() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
+  const exporter = useRef<ReturnType<typeof import('@/lib/video-cleanup-export').createVideoExporter> | null>(null)
   const controller = useRef<AbortController | null>(null)
-  useEffect(() => () => controller.current?.abort(), [])
+  useEffect(() => () => { controller.current?.abort(); exporter.current?.dispose() }, [])
   const dragRef = useRef<DragState | null>(null)
 
   const [videoFile, setVideoFile] = useState<File | null>(null)
@@ -84,6 +85,7 @@ export default function VideoWatermarkRemover() {
 
   // ── Upload ──
   const handleUpload = useCallback((file: File) => {
+    exporter.current?.dispose()
     if (videoUrl) URL.revokeObjectURL(videoUrl)
     if (processedUrl) URL.revokeObjectURL(processedUrl)
     if (previewUrl) URL.revokeObjectURL(previewUrl)
@@ -289,20 +291,14 @@ export default function VideoWatermarkRemover() {
     if (preview) setPreviewLoading(true)
     else setStep('processing')
     try {
-      const { exportVideo } = await import('@/lib/video-cleanup-export')
-      const { runComparison, getCrop } = await import('@/lib/video-cleanup-lab')
+      const { createVideoExporter } = await import('@/lib/video-cleanup-export')
+      exporter.current ??= createVideoExporter()
+      const { getCrop } = await import('@/lib/video-cleanup-lab')
       const areas = regions.map(r => ({ x: r.x / displaySize.width * nativeSize.width, y: r.y / displaySize.height * nativeSize.height,
         w: r.w / displaySize.width * nativeSize.width, h: r.h / displaySize.height * nativeSize.height }))
       for (const area of areas) getCrop(area, nativeSize.width, nativeSize.height)
-      let input = videoFile
-      let output: Blob = input
-      for (let i = 0; i < areas.length; i++) {
-        const status = (text: string) => setStatusMsg(areas.length > 1 ? `Region ${i + 1} of ${areas.length}: ${text}` : text)
-        output = preview
-          ? (await runComparison(input, areas[i], nativeSize.width, nativeSize.height, i === 0 ? currentTime : 0, status, current.signal)).ai
-          : (await exportVideo(input, areas[i], nativeSize.width, nativeSize.height, duration, status, current.signal)).video
-        input = new File([output], 'cleanup.mp4', { type: 'video/mp4' })
-      }
+      const output = (await exporter.current.run(videoFile, areas, nativeSize.width, nativeSize.height, duration,
+        setStatusMsg, current.signal, true, preview ? { previewStart: currentTime } : undefined)).video
       if (preview) setPreviewUrl(URL.createObjectURL(output))
       else { setProcessedUrl(URL.createObjectURL(output)); setStep('done'); track('wm_removed') }
     } catch (err) {
@@ -323,6 +319,7 @@ export default function VideoWatermarkRemover() {
   }
 
   const reset = () => {
+    exporter.current?.dispose()
     if (videoUrl) URL.revokeObjectURL(videoUrl)
     if (processedUrl) URL.revokeObjectURL(processedUrl)
     if (previewUrl) URL.revokeObjectURL(previewUrl)

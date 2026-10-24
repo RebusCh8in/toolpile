@@ -6,6 +6,7 @@ import { smoothBackground } from './smooth-background.mjs';
 ort.env.wasm.wasmPaths = '/video-lab/runtime/';
 ort.env.wasm.numThreads = 1;
 let session;
+let backend = 'CPU (WASM)';
 self.onmessage = async ({ data }) => {
   try {
     if (data.kind === 'assess') {
@@ -17,7 +18,10 @@ self.onmessage = async ({ data }) => {
         self.postMessage({ backend: 'Smooth background (local)' });
         return;
       }
-      let backend = 'CPU (WASM)';
+      if (session) {
+        self.postMessage({ backend });
+        return;
+      }
       if (data.preferGpu && self.navigator.gpu) {
         try {
           session = await ort.InferenceSession.create('/video-lab/runtime/migan.onnx', { executionProviders: ['webgpu', 'wasm'] });

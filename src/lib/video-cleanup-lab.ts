@@ -125,7 +125,7 @@ export function request(worker: Worker, data: object, signal: AbortSignal, trans
 }
 
 export async function runComparison(file: File, region: Region, width: number, height: number, start: number,
-  status: (text: string) => void, signal: AbortSignal, reference?: File, preferGpu = true): Promise<LabResult> {
+  status: (text: string) => void, signal: AbortSignal, reference?: File, preferGpu = true, includeBaseline = true): Promise<LabResult> {
   if (file.size > 150 * 1024 * 1024) throw new Error('Use a clip under 150 MB for this experiment.')
   if (width > 1920 || height > 1920 || width * height > 1920 * 1080) throw new Error('Use a video at 1080p or below for this experiment.')
   if (!Number.isFinite(start) || start < 0) throw new Error('Choose a valid start time.')
@@ -149,10 +149,12 @@ export async function runComparison(file: File, region: Region, width: number, h
     await engine.deleteFile('input')
 
     // pad supplies the sample border delogo requires, including selections at a frame edge.
+    if (includeBaseline || reference) {
     status('Running the existing remover for comparison…')
     await exec(engine, ['-i', 'original.mp4', '-vf', `pad=iw+4:ih+4:2:2,delogo=x=${x + 2}:y=${y + 2}:w=${w}:h=${h},crop=iw-4:ih-4:2:2`,
       '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18', '-c:a', 'copy', '-y', 'baseline.mp4'], signal)
 
+    }
     status('Extracting only the area around the watermark…')
     await exec(engine, ['-i', 'original.mp4', '-vf', `${TO_RGB},crop=${cw}:${ch}:${cx}:${cy}:exact=1`, '-an', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-y', 'crops.rgb'], signal)
     const raw = await bytes(engine, 'crops.rgb')
@@ -224,7 +226,7 @@ export async function runComparison(file: File, region: Region, width: number, h
       }
     }
     return {
-      original: await videoBlob(engine, 'original.mp4'), baseline: await videoBlob(engine, 'baseline.mp4'), ai: await videoBlob(engine, 'ai.mp4'),
+      original: await videoBlob(engine, 'original.mp4'), baseline: await videoBlob(engine, includeBaseline || reference ? 'baseline.mp4' : 'original.mp4'), ai: await videoBlob(engine, 'ai.mp4'),
       seconds: frames / FPS, frames, inferenceMs, quality, backend, smoothFrames,
     }
   } finally {
